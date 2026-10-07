@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build and distribution artifacts
+dist/
+build/
+bin/
+*.tsbuildinfo
+
+# Rust build artifacts
+target/
+Cargo.lock
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+*.egg-info/
+
+# Logs and databases
+*.log
+*.sqlite
+*.sqlite3
+*.db
+.audit-logs/
+audit-events.jsonl
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+credentials.json
+
+# Operating System and Editor files
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+
+# Coverage and testing outputs
+coverage/
+.nyc_output/

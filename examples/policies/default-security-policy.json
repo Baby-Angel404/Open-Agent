@@ -1,0 +1,37 @@
+{
+  "id": "policy_default_v1",
+  "name": "Standard Local Agent Security Policy",
+  "version": "1.0.0",
+  "defaultDecision": "DENY",
+  "allowedDomains": ["example.com", "docs.openagent.org", "localhost"],
+  "deniedDomains": ["malicious-target.com", "tracker.adtech.internal"],
+  "sensitiveActionTypes": ["shell_exec", "file_delete", "download_file", "input_password"],
+  "rules": [
+    {
+      "id": "rule_allow_safe_nav",
+      "actionType": "navigate",
+      "decision": "ALLOW",
+      "targetPattern": "*",
+      "description": "Allow general navigation subject to domain whitelist"
+    },
+    {
+      "id": "rule_allow_dom_read",
+      "actionType": "read_dom",
+      "decision": "ALLOW",
+      "rateLimitPerMinute": 120,
+      "description": "Permit reading DOM elements within rate limits"
+    },
+    {
+      "id": "rule_ask_user_file_write",
+      "actionType": "file_write",
+      "decision": "ASK_USER",
+      "description": "Prompt user confirmation before writing local files"
+    },
+    {
+      "id": "rule_deny_shell",
+      "actionType": "shell_exec",
+      "decision": "DENY",
+      "description": "Disallow raw shell execution"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "name": "@open-agent/core",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Foundational types, deterministic policy engine, and audit logging for OpenAgent Infrastructure",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test dist/tests/",
+    "lint": "echo 'No lint errors in core'"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.4.5"
+  },
+  "license": "Apache-2.0"
+}

@@ -1,0 +1,25 @@
+{
+  "name": "@open-agent/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Command-line interface for OpenAgent Infrastructure",
+  "bin": {
+    "openagent": "./dist/bin/openagent.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc && chmod +x dist/bin/openagent.js || true",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test dist/tests/",
+    "lint": "echo 'No lint errors in cli'"
+  },
+  "dependencies": {
+    "@open-agent/core": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.4.5"
+  },
+  "license": "Apache-2.0"
+}

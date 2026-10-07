@@ -1,0 +1,28 @@
+{
+  "name": "open-agent-infrastructure",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Foundational open-source infrastructure platform for policy-controlled autonomous agents",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace=@open-agent/core && npm run build --workspace=@open-agent/cli",
+    "test": "npm run test --workspace=@open-agent/core && npm run test --workspace=@open-agent/cli",
+    "typecheck": "npm run typecheck --workspace=@open-agent/core && npm run typecheck --workspace=@open-agent/cli",
+    "lint": "npm run lint --workspaces --if-present",
+    "format": "prettier --write \"**/*.{ts,js,json,md,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{ts,js,json,md,yml,yaml}\""
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "prettier": "^3.2.5",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "license": "Apache-2.0"
+}
