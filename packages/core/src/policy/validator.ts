@@ -10,7 +10,10 @@ export class ValidationError extends Error {
   }
 }
 
-export function validateAction(action: unknown): asserts action is AgentAction {
+export function validateAction(
+  action: unknown,
+  requireFullMetadata = false
+): asserts action is AgentAction {
   if (!action || typeof action !== "object") {
     throw new ValidationError("Action must be a valid non-null object");
   }
@@ -20,6 +23,30 @@ export function validateAction(action: unknown): asserts action is AgentAction {
   }
   if (act.target !== undefined && typeof act.target !== "string") {
     throw new ValidationError("Action 'target', if provided, must be a string");
+  }
+
+  if (requireFullMetadata) {
+    if (typeof act.id !== "string" || act.id.trim() === "") {
+      throw new ValidationError("Action must contain a valid non-empty 'id'");
+    }
+    if (typeof act.sessionId !== "string" || act.sessionId.trim() === "") {
+      throw new ValidationError("Action must contain a valid non-empty 'sessionId'");
+    }
+    if (typeof act.agentId !== "string" || act.agentId.trim() === "") {
+      throw new ValidationError("Action must contain a valid non-empty 'agentId'");
+    }
+    if (typeof act.target !== "string" || act.target.trim() === "") {
+      throw new ValidationError("Action must contain a valid non-empty 'target'");
+    }
+    if (
+      (!act.parameters || typeof act.parameters !== "object") &&
+      (!act.payload || typeof act.payload !== "object")
+    ) {
+      throw new ValidationError("Action must contain a valid 'parameters' object");
+    }
+    if (typeof act.timestamp !== "string" || act.timestamp.trim() === "") {
+      throw new ValidationError("Action must contain a valid non-empty 'timestamp'");
+    }
   }
 }
 

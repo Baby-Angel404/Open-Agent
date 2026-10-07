@@ -1,21 +1,25 @@
 # Policy Engine Specification
 
-The `PolicyEngine` evaluates an incoming `AgentAction` against a given `Policy` and outputs an unambiguous `PolicyDecision`.
+The `PolicyEngine` evaluates an incoming `AgentAction` against a given `Policy` and outputs an unambiguous, deterministic `PolicyDecision`.
 
 ---
 
 ## Data Contract
 
-### Input: `AgentAction`
+### Expanded Action Model: `AgentAction`
 
 ```typescript
 interface AgentAction {
   id?: string;
-  type: string;
+  sessionId?: string;
+  type:
+    "navigate" | "read" | "click" | "type" | "select" | "download" | "upload" | "submit" | string;
   target?: string;
-  payload?: Record<string, unknown>;
+  parameters?: Record<string, unknown>;
   timestamp?: string;
+  agentId?: string;
   isSensitive?: boolean;
+  payload?: Record<string, unknown>;
 }
 ```
 
@@ -61,3 +65,11 @@ interface PolicyDecision {
 4. **Fallback & Default-Deny**:
    - If no rule matched and the action is classified as sensitive: returns `DENY` (`Default Deny`).
    - Otherwise, returns `policy.defaultDecision` (defaulting to `DENY`).
+
+---
+
+## Downstream Enforcement Guarantees
+
+- **`DENY`**: Action is immediately blocked. The executor is never called.
+- **`ASK_USER`**: Execution is paused, session transitions to `WAITING_FOR_APPROVAL`, and requires explicit operator input (`APPROVE`, `DENY`, `CANCEL_SESSION`).
+- **`ALLOW`**: Generates a cryptographic `ApprovedAction` token which is verified by `ExecutorDispatcher` before invoking modular executors.

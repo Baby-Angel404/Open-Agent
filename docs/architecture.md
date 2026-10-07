@@ -4,58 +4,77 @@ OpenAgent Infrastructure provides an execution substrate where AI models act sol
 
 ---
 
-## Architectural Principle: Inversion of Trust
+## Architectural Principle: Inversion of Trust & Strict Boundaries
 
-In traditional autonomous agent designs, the LLM is given direct access to tool APIs or the shell. If the model hallucinates or is manipulated via prompt injection, malicious actions execute directly.
+In traditional autonomous agent designs, the LLM has direct access to tool APIs or the host environment. If the model hallucinates or is manipulated via prompt injection, unauthorized actions execute immediately.
 
-OpenAgent implements an **Inversion of Trust**:
+OpenAgent strictly enforces four trust boundaries:
+
+| Boundary Layer          | Role & Authority                    | Guarantees                                                                                                       |
+| :---------------------- | :---------------------------------- | :--------------------------------------------------------------------------------------------------------------- |
+| **LLM Provider**        | **Untrusted Action Proposer**       | Proposes candidate `AgentAction` payloads. Has zero authority to bypass policies or execute code directly.       |
+| **Policy Engine**       | **Security Authority**              | Deterministic rule and domain gatekeeper. Makes irrevocable `ALLOW`, `DENY`, `ASK_USER`, or `LIMITED` decisions. |
+| **Executor Dispatcher** | **Controlled Capability Execution** | Modular execution units. Rejects any action without an authenticated, un-tampered `ApprovedAction` token.        |
+| **Audit Logger**        | **Accountability Layer**            | Append-only SHA-256 hash-chained log. Sanitizes secrets and preserves permanent audit evidence locally.          |
 
 ```
 +---------------+
 |     USER      |
 +-------+-------+
-        │ (Goal / Prompt)
+        │ (Task / Goal)
         ▼
 +---------------+
-|  AI PLANNER   |  <--- UNTRUSTED / STOCHASTIC LAYER
-+-------+-------+
-        │ (Proposed Action Payload)
-        ▼
-+---------------+
-| POLICY ENGINE |  <--- TRUSTED DETERMINISTIC GATE
+| AGENT RUNTIME |
 +-------+-------+
         │
-   +----+----+---------------+
-   │         │               │
- ALLOW    ASK_USER         DENY
-   │         │               │
-   ▼         ▼               ▼
-EXECUTOR  CONFIRMATION    ABORT
-   │
-   ▼
-+---------------------+
-| APPEND-ONLY AUDIT   |
-+---------------------+
+        ▼
++---------------+
+|  LLM PROVIDER |  <--- UNTRUSTED PROPOSER
++-------+-------+
+        │ (Proposed AgentAction)
+        ▼
++---------------+
+| POLICY ENGINE |  <--- SECURITY AUTHORITY
++-------+-------+
+        │
+   +----+----+-------------------------+
+   │         │                         │
+ ALLOW    ASK_USER                   DENY
+   │         │                         │
+   │    +----+----+                    ▼
+   │    │ USER    │                 BLOCKED
+   │    │ APPROVAL│                    │
+   │    +----+----+                    │
+   │         │                         │
+   │   [Approve] [Deny]                │
+   │      │        │                   │
+   ▼      ▼        ▼                   │
++---------------+  ABORT               │
+|  DISPATCHER   |                      │
++-------+-------+                      │
+        │ (ApprovedAction Token)       │
+        ▼                              ▼
++---------------+              +---------------+
+|   EXECUTOR    |              |  AUDIT LOG    |
++-------+-------+              |  (REDACTED)   |
+        │ (ActionResult)       +---------------+
+        └──────────────────────────────▲
 ```
 
 ---
 
-## Subsystem Interactions
+## Agent Runtime Lifecycle & Subsystems
 
-1. **Agent Planning**: The agent produces a structured `AgentAction` with a `type`, optional `target`, and `payload`.
-2. **Policy Evaluation**: The `PolicyEngine` evaluates the action against active `Policy` rules.
-3. **Execution Decision**:
-   - `ALLOW`: The action proceeds immediately to the designated executor.
-   - `DENY`: The action is blocked, reason is recorded, and execution halts or requests replanning.
-   - `ASK_USER`: The action is suspended until explicit confirmation is obtained.
-   - `LIMITED`: The action is throttled due to exceeding configured rate limits.
-4. **Audit Logging**: Every evaluation and execution result emits an immutable `AuditEvent`, chained using SHA-256 hashes in a local append-only log.
-
----
-
-## Modularity & Extensibility
-
-- `@open-agent/core`: Zero-dependency library usable across CLI, Node.js daemons, and browser environments.
-- `@open-agent/cli`: Thin operator wrapper providing human inspection and diagnostics.
-- `crates/*`: Reserved for high-performance Rust native extensions (future phases).
-- `services/*`: Reserved for localized background coordination daemons (future phases).
+1. **Session Management**:
+   Every user task instantiates a managed `Session` tracked through explicit states:
+   - `CREATED` -> `RUNNING` -> `WAITING_FOR_APPROVAL` -> `COMPLETED` / `FAILED` / `STOPPED`.
+2. **Action Proposal & Validation**:
+   The `LLMProvider` generates a candidate `AgentAction`. The runtime validates all metadata (`id`, `sessionId`, `type`, `target`, `parameters`, `timestamp`, `agentId`) and verifies that the action maps to a registered capability in `CapabilityRegistry`.
+3. **Policy Evaluation**:
+   `PolicyEngine.evaluate(action, policy)` verifies domains, inherently sensitive action lists, and rate limits.
+4. **Approval Loop (`ASK_USER`)**:
+   If the policy requires confirmation, the runtime suspends the session (`WAITING_FOR_APPROVAL`). Execution resumes only upon receiving explicit user input (`APPROVE`, `DENY`, or `CANCEL_SESSION`).
+5. **Emergency Stop (Kill Switch)**:
+   The user or operator can call `emergencyStop()` at any point. Active and pending actions are aborted immediately, session transitions to `STOPPED`, and an immutable audit event is persisted.
+6. **Local API**:
+   A versioned HTTP API (`/api/v1/agents`, `/api/v1/sessions`, `/api/v1/policies`, `/api/v1/audit`) facilitates communication between the CLI, runtime, and upcoming desktop or browser interfaces.
