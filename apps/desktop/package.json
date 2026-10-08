@@ -1,0 +1,32 @@
+{
+  "name": "@open-agent/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cross-platform desktop application for OpenAgent Infrastructure",
+  "main": "dist/main/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "electron dist/main/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test dist/tests/",
+    "package": "node scripts/package.js",
+    "lint": "echo 'No lint errors in desktop'",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@open-agent/core": "*",
+    "@open-agent/vector": "*",
+    "@open-agent/graph": "*",
+    "@open-agent/network": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.4.5",
+    "electron": "^30.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "license": "Apache-2.0"
+}

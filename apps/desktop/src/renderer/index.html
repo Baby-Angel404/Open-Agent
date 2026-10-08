@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';">
+  <title>OpenAgent Infrastructure</title>
+  <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+  <!-- Sidebar Navigation -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-badge">OA</div>
+      <div>
+        <div class="app-title">OpenAgent</div>
+        <div style="font-size: 0.75rem; color: var(--text-secondary);">v0.1.0 Desktop</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <a class="nav-item active" data-target="view-status">
+        <span>📊</span> <span>System Status</span>
+      </a>
+      <a class="nav-item" data-target="view-agents">
+        <span>🤖</span> <span>Agent Workspace</span>
+      </a>
+      <a class="nav-item" data-target="view-browser">
+        <span>🌐</span> <span>Browser Controls</span>
+      </a>
+      <a class="nav-item" data-target="view-rag">
+        <span>🧠</span> <span>Knowledge & RAG</span>
+      </a>
+      <a class="nav-item" data-target="view-network">
+        <span>📡</span> <span>Network Explorer</span>
+      </a>
+      <a class="nav-item" data-target="view-plugins">
+        <span>🧩</span> <span>Capabilities & Plugins</span>
+      </a>
+      <a class="nav-item" data-target="view-settings">
+        <span>⚙️</span> <span>Settings & Security</span>
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <span>Status: <span id="global-node-status" class="badge badge-online">ONLINE</span></span>
+      <span id="gateway-port-indicator">Port: --</span>
+    </div>
+  </aside>
+
+  <!-- Main View Area -->
+  <main class="main-wrapper">
+    <header class="top-bar">
+      <h1 class="view-title" id="page-title">System Status</h1>
+      <div class="top-actions">
+        <button id="btn-refresh" class="btn btn-secondary" style="padding: 0.4rem 0.75rem;">↻ Refresh</button>
+      </div>
+    </header>
+
+    <div class="content-pane">
+      <!-- 1. System Status View -->
+      <section id="view-status" class="workspace-view active">
+        <div class="cards-grid">
+          <div class="card">
+            <div class="card-title">System Health</div>
+            <div class="card-value" style="color: var(--accent-success);">OPERATIONAL</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Active Sessions</div>
+            <div class="card-value" id="metric-sessions">0</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Audit Events</div>
+            <div class="card-value" id="metric-audit">0</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Knowledge Entities</div>
+            <div class="card-value" id="metric-graph">0</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Known Peers</div>
+            <div class="card-value" id="metric-peers">0</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 style="font-size: 1rem; margin-bottom: 0.75rem;">Subsystem Integrity</h2>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Subsystem</th>
+                <th>Role</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="subsystems-table-body">
+              <tr><td>Local AI Agent Runtime</td><td>Execution Supervisor</td><td><span class="badge badge-online">ACTIVE</span></td></tr>
+              <tr><td>Policy Engine</td><td>Deterministic Access Boundary</td><td><span class="badge badge-online">ACTIVE</span></td></tr>
+              <tr><td>Append-Only Audit Store</td><td>Cryptographic Event Log</td><td><span class="badge badge-online">ACTIVE</span></td></tr>
+              <tr><td>Hybrid Vector Engine</td><td>Dense & Sparse Local Embeddings</td><td><span class="badge badge-online">ACTIVE</span></td></tr>
+              <tr><td>Knowledge Graph & RAG</td><td>Entity Resolution & Traversal</td><td><span class="badge badge-online">ACTIVE</span></td></tr>
+              <tr><td>Decentralized Network Node</td><td>Peer Discovery & Auth Capabilities</td><td><span class="badge badge-online">ACTIVE</span></td></tr>
+              <tr><td>Loopback Gateway (127.0.0.1)</td><td>Local API Interface</td><td><span class="badge badge-online">ACTIVE</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <h2 style="font-size: 1rem; margin-bottom: 0.75rem;">Loopback API Gateway</h2>
+          <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
+            Core subsystems are securely exposed over a strictly bound local-loopback gateway (127.0.0.1) with ephemeral authentication.
+          </p>
+          <div id="gateway-link" class="terminal-box" style="padding: 0.6rem;">http://127.0.0.1:--</div>
+        </div>
+      </section>
+
+      <!-- 2. Agent Workspace View -->
+      <section id="view-agents" class="workspace-view">
+        <div class="card">
+          <h2 style="font-size: 1rem; margin-bottom: 0.75rem;">Start New Agent Session</h2>
+          <form id="form-create-session">
+            <div class="form-group">
+              <label for="input-agent-goal">Task / Goal Description</label>
+              <textarea id="input-agent-goal" rows="2" placeholder="e.g. Ingest research paper, summarize key findings, and query local network" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Launch Agent Session</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h2 style="font-size: 1rem; margin-bottom: 0.75rem;">Active Sessions</h2>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Session ID</th>
+                <th>Status</th>
+                <th>Goal</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="sessions-table-body">
+              <tr><td colspan="4" style="text-align:center; color: var(--text-muted);">No active sessions</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <h2 style="font-size: 1rem; margin-bottom: 0.75rem;">Session Event Stream & Audit Log</h2>
+          <div id="agent-event-log" class="terminal-box">Waiting for session execution...</div>
+        </div>
+      </section>
+
+      <!-- 3. Browser Controls View -->
+      <section id="view-browser" class="workspace-view">
+        <div class="card">
+          <h2 style="font-size: 1rem; margin-bottom: 0.75rem;">Policy-Controlled Navigation</h2>
+          <form id="form-browser-nav">
+            <div style="display: flex; gap: 0.75rem;">
+              <input type="url" id="input-browser-url" placeholder="https://example.com" style="flex: 1;" required>
+              <button type="submit" class="btn btn-primary">Navigate</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card">
+          <h2 style="font-size: 1rem; margin-bottom: 0.75rem;">Automated Interaction Playground</h2>
+          <div style="display: flex; gap: 0.75rem; margin-bottom: 1rem;">
+            <select id="select-browser-action">
+              <option value="click">Click Element</option>
+              <option value="type">Type Text</option>
+              <option value="screenshot">Capture Screenshot</option>
+              <option value="extract_text">Extract Page Text</option>
+            </select>
+            <input type="text" id="input-browser-selector" placeholder="Selector (e.g. #submit-btn)" style="flex: 1;">
+            <input type="text" id="input-browser-text" placeholder="Input text (if applicable)" style="flex: 1;">
+            <button id="btn-browser-execute" class="btn btn-secondary">Execute Action</button>
+          </div>
+          <div id="browser-result-log" class="terminal-box">Browser agent is ready and policy-guarded.</div>
+        </div>
+      </section>
+
+      <!-- 4. Knowledge & RAG Workspace -->
+      <section id="view-rag" class="workspace-view">
+        <div class="card">
+          <h2 style="font-size: 1rem; margin-bottom: 0.75rem;">Ingest Knowledge Document</h2>
+          <form id="form-rag-ingest">
+            <div class="form-group">
+              <label for="input-doc-title">Document Title</label>
+              <input type="text" id="input-doc-title" placeholder="System Architecture Overview" required>
+            </div>
+            <div class="form-group">
+              <label for="input-doc-content">Document Content (Plaintext / Markdown)</label>
+              <textarea id="input-doc-content" rows="4" placeholder="Enter document content to chunk and vectorize..." required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Ingest into Vector & Graph Store</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h2 style="font-size: 1rem; margin-bottom: 0.75rem;">Hybrid Graph RAG Query</h2>
+          <form id="form-rag-query">
+            <div style="display: flex; gap: 0.75rem;">
+              <input type="text" id="input-rag-query" placeholder="Ask a question about ingested knowledge..." style="flex: 1;" required>
+              <button type="submit" class="btn btn-primary">Query Knowledge</button>
+            </div>
+          </form>
+          <div id="rag-query-result" class="terminal-box" style="margin-top: 1rem;">Results will appear here...</div>
+        </div>
+
+        <div class="card">
+          <h2 style="font-size: 1rem; margin-bottom: 0.75rem;">Knowledge Graph Entity Browser</h2>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Entity ID</th>
+                <th>Name</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody id="graph-entities-table-body">
+              <tr><td colspan="3" style="text-align: center; color: var(--text-muted);">No entities loaded</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 5. Network Explorer View -->
+      <section id="view-network" class="workspace-view">
+        <div class="card">
+          <h2 style="font-size: 1rem; margin-bottom: 0.75rem;">Local Node Identity</h2>
+          <div id="network-identity-box" class="terminal-box">Loading decentralized node credentials...</div>
+        </div>
+
+        <div class="card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <h2 style="font-size: 1rem;">Discovered Peers</h2>
+            <button id="btn-discover-peers" class="btn btn-secondary">Discover Peers</button>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Agent ID</th>
+                <th>Public Key</th>
+                <th>Addresses</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="peers-table-body">
+              <tr><td colspan="4" style="text-align:center; color: var(--text-muted);">No peers registered</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 6. Capabilities & Plugins View -->
+      <section id="view-plugins" class="workspace-view">
+        <div class="card">
+          <h2 style="font-size: 1rem; margin-bottom: 0.75rem;">Register New Capability</h2>
+          <form id="form-register-cap">
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+              <input type="text" id="input-cap-name" placeholder="Capability Name (e.g. data_cleaner)" required>
+              <input type="text" id="input-cap-version" placeholder="1.0.0" required>
+              <select id="select-cap-risk">
+                <option value="low">Risk: Low</option>
+                <option value="medium">Risk: Medium</option>
+                <option value="high">Risk: High</option>
+                <option value="critical">Risk: Critical</option>
+              </select>
+            </div>
+            <input type="text" id="input-cap-desc" placeholder="Capability description..." style="width: 100%; margin-bottom: 0.75rem;" required>
+            <button type="submit" class="btn btn-primary">Register Capability</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h2 style="font-size: 1rem; margin-bottom: 0.75rem;">Active Capabilities Catalog</h2>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Version</th>
+                <th>Risk Level</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody id="capabilities-table-body">
+              <tr><td colspan="4" style="text-align:center; color: var(--text-muted);">Loading capabilities...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 7. Settings & Security View -->
+      <section id="view-settings" class="workspace-view">
+        <div class="card">
+          <h2 style="font-size: 1rem; margin-bottom: 0.75rem;">Security & Policy Configuration</h2>
+          <div class="form-group">
+            <label>
+              <input type="checkbox" id="check-strict-policy" checked> Enforce Strict Security Policy
+            </label>
+            <span style="font-size: 0.75rem; color: var(--text-secondary);">Block all unapproved shell, filesystem breakouts, and unsafe network calls.</span>
+          </div>
+          <div class="form-group">
+            <label>
+              <input type="checkbox" id="check-require-approval" checked> Require User Approval for Medium & High Risk Actions
+            </label>
+          </div>
+          <button id="btn-save-settings" class="btn btn-primary">Save Settings</button>
+        </div>
+
+        <div class="card">
+          <h2 style="font-size: 1rem; margin-bottom: 0.75rem;">Encrypted Credential Vault (AES-256-GCM)</h2>
+          <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
+            Store sensitive credentials securely. Keys are never exposed in UI or logs once stored.
+          </p>
+          <div style="display: flex; gap: 0.75rem; margin-bottom: 0.75rem;">
+            <input type="text" id="input-vault-key" placeholder="Key (e.g. OPENAI_API_KEY)" style="flex: 1;">
+            <input type="password" id="input-vault-val" placeholder="Secret value" style="flex: 2;">
+            <button id="btn-vault-save" class="btn btn-secondary">Store Secret</button>
+          </div>
+          <div id="vault-status-box" style="font-size: 0.85rem; color: var(--accent-success);"></div>
+        </div>
+
+        <div class="card">
+          <h2 style="font-size: 1rem; margin-bottom: 0.75rem;">Backup, Verification & Restore</h2>
+          <div style="display: flex; gap: 0.75rem; margin-bottom: 0.75rem;">
+            <input type="text" id="input-backup-path" placeholder="/home/qwerty/openagent-backup.json" style="flex: 1;">
+            <button id="btn-create-backup" class="btn btn-primary">Create Backup</button>
+            <button id="btn-verify-backup" class="btn btn-secondary">Verify Checksum</button>
+            <button id="btn-restore-backup" class="btn btn-danger">Restore</button>
+          </div>
+          <div id="backup-result-log" class="terminal-box">Backup manager is ready.</div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Onboarding Wizard Modal -->
+  <div id="modal-onboarding" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+      <h2 style="font-size: 1.25rem; margin-bottom: 0.5rem;">Welcome to OpenAgent</h2>
+      <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+        OpenAgent is a local-first, policy-controlled autonomous agent platform. Let's initialize your secure local workspace.
+      </p>
+      <div class="form-group">
+        <label>Node / Machine Identifier</label>
+        <input type="text" id="wizard-node-name" value="OpenAgent-Desktop-Primary">
+      </div>
+      <div class="form-group">
+        <label>Security Profile</label>
+        <select id="wizard-security-level">
+          <option value="strict">Strict (Require manual approval for sensitive tasks)</option>
+          <option value="moderate">Moderate (Autonomous with sandbox limits)</option>
+        </select>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+        <button id="btn-finish-onboarding" class="btn btn-primary">Complete Setup & Launch</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="scripts/app.js"></script>
+</body>
+</html>
