@@ -28,6 +28,24 @@ import {
   handleGraphRepair,
 } from "../commands/graph.js";
 import { handleRagQuery } from "../commands/rag.js";
+import { handleNetworkStatus } from "../commands/network.js";
+import {
+  handlePeerList,
+  handlePeerInspect,
+  handlePeerConnect,
+  handlePeerDisconnect,
+  handlePeerBlock,
+  handlePeerUnblock,
+} from "../commands/peer.js";
+import {
+  handleCapabilityList,
+  handleCapabilitySearch,
+  handleCapabilityInspect,
+  handleCapabilityRegister,
+  handleCapabilityInvoke,
+} from "../commands/capability.js";
+import { handleReputationShow } from "../commands/reputation.js";
+import { IdentityManager } from "@open-agent/network";
 import { PolicyEngine, AgentAction } from "@open-agent/core";
 
 test("CLI policy loader reads default policy correctly", () => {
@@ -200,6 +218,77 @@ test("CLI Knowledge Graph & Graph RAG end-to-end commands", async () => {
     expandGraph: true,
     depth: 2,
   });
+
+  // Clean up
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+});
+
+test("CLI network, peer, capability, and reputation commands execute successfully", async () => {
+  const tmpDir = path.join(os.tmpdir(), `cli_network_test_${Date.now()}`);
+  fs.mkdirSync(tmpDir, { recursive: true });
+
+  // 1. Network status
+  await handleNetworkStatus({ storageDir: tmpDir });
+
+  // 2. Peer connect and list
+  const kp = IdentityManager.generateKeyPair();
+  const testPeerId = kp.identity.agent_id;
+  const testPubKey = kp.identity.public_key;
+  await handlePeerConnect(testPeerId, {
+    pubkey: testPubKey,
+    address: "http://127.0.0.1:4243",
+    storageDir: tmpDir,
+  });
+
+  await handlePeerList({ storageDir: tmpDir });
+  await handlePeerList({ format: "json", storageDir: tmpDir });
+  await handlePeerInspect(testPeerId, { storageDir: tmpDir });
+  await handlePeerInspect(testPeerId, { format: "json", storageDir: tmpDir });
+
+  // 3. Peer block and unblock
+  await handlePeerBlock(testPeerId, { reason: "Testing block CLI", storageDir: tmpDir });
+  await handlePeerUnblock(testPeerId, { storageDir: tmpDir });
+  await handlePeerDisconnect(testPeerId, { storageDir: tmpDir });
+
+  // 4. Capability list, search, inspect
+  await handleCapabilityList({ storageDir: tmpDir });
+  await handleCapabilityList({ format: "json", storageDir: tmpDir });
+  await handleCapabilitySearch("search", { storageDir: tmpDir });
+  await handleCapabilitySearch("search", { format: "json", storageDir: tmpDir });
+  await handleCapabilityInspect("document.search@1.0", { storageDir: tmpDir });
+  await handleCapabilityInspect("document.search@1.0", { format: "json", storageDir: tmpDir });
+
+  // 5. Capability register (manifest file)
+  const manifestPath = path.join(tmpDir, "custom-cap.json");
+  fs.writeFileSync(
+    manifestPath,
+    JSON.stringify({
+      capability_id: "sentiment.analyze@1.0",
+      name: "sentiment.analyze",
+      version: "1.0.0",
+      description: "Analyze sentiment of text safely",
+      input_schema: { type: "object", properties: { text: { type: "string" } } },
+      output_schema: { type: "object", properties: { score: { type: "number" } } },
+      required_permissions: [],
+      risk_level: "LOW",
+      provider_agent_id: testPeerId,
+      availability: "ONLINE",
+    })
+  );
+  await handleCapabilityRegister(manifestPath, { storageDir: tmpDir });
+
+  // 6. Capability invoke
+  await handleCapabilityInvoke(testPeerId, "document.search@1.0", {
+    params: JSON.stringify({ query: "agent security", top_k: 3 }),
+    storageDir: tmpDir,
+  });
+
+  // 7. Reputation show
+  await handleReputationShow(testPeerId, { storageDir: tmpDir });
+  await handleReputationShow(testPeerId, { format: "json", storageDir: tmpDir });
+
+  // Reset exitCode if set during failure handling
+  process.exitCode = 0;
 
   // Clean up
   fs.rmSync(tmpDir, { recursive: true, force: true });

@@ -8,9 +8,9 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "npm run build --workspace=@open-agent/vector && npm run build --workspace=@open-agent/graph && npm run build --workspace=@open-agent/core && npm run build --workspace=@open-agent/cli",
-    "test": "npm run test --workspace=@open-agent/vector && npm run test --workspace=@open-agent/graph && npm run test --workspace=@open-agent/core && npm run test --workspace=@open-agent/cli",
-    "typecheck": "npm run typecheck --workspace=@open-agent/vector && npm run typecheck --workspace=@open-agent/graph && npm run typecheck --workspace=@open-agent/core && npm run typecheck --workspace=@open-agent/cli",
+    "build": "npm run build --workspace=@open-agent/vector && npm run build --workspace=@open-agent/graph && npm run build --workspace=@open-agent/network && npm run build --workspace=@open-agent/core && npm run build --workspace=@open-agent/cli",
+    "test": "npm run test --workspace=@open-agent/vector && npm run test --workspace=@open-agent/graph && npm run test --workspace=@open-agent/network && npm run test --workspace=@open-agent/core && npm run test --workspace=@open-agent/cli",
+    "typecheck": "npm run typecheck --workspace=@open-agent/vector && npm run typecheck --workspace=@open-agent/graph && npm run typecheck --workspace=@open-agent/network && npm run typecheck --workspace=@open-agent/core && npm run typecheck --workspace=@open-agent/cli",
     "lint": "npm run lint --workspaces --if-present",
     "format": "prettier --write \"**/*.{ts,js,json,md,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{ts,js,json,md,yml,yaml}\""

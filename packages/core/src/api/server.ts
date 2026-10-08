@@ -10,12 +10,17 @@ import { AuditQueryFilter } from "../types/audit.js";
 import { VectorEngine, VectorAPIHandler } from "@open-agent/vector";
 import { FileSystemGraphStorage, GraphRAGEngine, GraphAPIHandler } from "@open-agent/graph";
 
+export interface NetworkRouteHandler {
+  handleRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<boolean>;
+}
+
 export interface APIServerOptions {
   runtime: AgentRuntime;
   auditLogger?: LocalAuditLogger | AppendOnlyAuditStore;
   vectorEngine?: VectorEngine;
   graphStorage?: FileSystemGraphStorage;
   ragEngine?: GraphRAGEngine;
+  networkHandler?: NetworkRouteHandler;
   port?: number;
   host?: string;
   enableDashboard?: boolean;
@@ -30,6 +35,7 @@ export class LocalAPIServer {
   private graphStorage: FileSystemGraphStorage;
   private ragEngine: GraphRAGEngine;
   private graphHandler: GraphAPIHandler;
+  private networkHandler?: NetworkRouteHandler;
   private port: number;
   private host: string;
   private enableDashboard: boolean;
@@ -40,6 +46,7 @@ export class LocalAPIServer {
 
   constructor(options: APIServerOptions) {
     this.runtime = options.runtime;
+    this.networkHandler = options.networkHandler;
     this.port = options.port || 4242;
     this.host = options.host || "127.0.0.1"; // Security hardening: bind exclusively to local interface
     this.enableDashboard = options.enableDashboard !== false;
@@ -62,6 +69,14 @@ export class LocalAPIServer {
     } else {
       this.auditStore = options.runtime.getAuditStore();
     }
+  }
+
+  public setNetworkHandler(handler: NetworkRouteHandler): void {
+    this.networkHandler = handler;
+  }
+
+  public getNetworkHandler(): NetworkRouteHandler | undefined {
+    return this.networkHandler;
   }
 
   private isAllowedOrigin(origin?: string): boolean {
@@ -173,6 +188,24 @@ export class LocalAPIServer {
       // Graph & Graph RAG Engine routes
       if (pathname.startsWith("/api/v1/graph") || pathname.startsWith("/api/v1/rag")) {
         return await this.graphHandler.handleRequest(req, res);
+      }
+
+      // Decentralized Network & Capability routes
+      if (
+        pathname.startsWith("/api/v1/network") ||
+        pathname.startsWith("/api/v1/peers") ||
+        pathname.startsWith("/api/v1/capabilities") ||
+        pathname.startsWith("/api/v1/reputation")
+      ) {
+        if (this.networkHandler) {
+          const handled = await this.networkHandler.handleRequest(req, res);
+          if (handled) return;
+        } else {
+          return this.sendJSON(res, 503, {
+            success: false,
+            error: "Network node is not initialized on this API server instance",
+          });
+        }
       }
 
       // 0. Dashboard & Health

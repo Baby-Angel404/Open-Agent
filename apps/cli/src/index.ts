@@ -5,4 +5,8 @@ export * from "./commands/session.js";
 export * from "./commands/vector.js";
 export * from "./commands/graph.js";
 export * from "./commands/rag.js";
+export * from "./commands/network.js";
+export * from "./commands/peer.js";
+export * from "./commands/capability.js";
+export * from "./commands/reputation.js";
 export * from "./bin/openagent.js";

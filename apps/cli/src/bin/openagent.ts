@@ -33,6 +33,23 @@ import {
   handleGraphRepair,
 } from "../commands/graph.js";
 import { handleRagQuery } from "../commands/rag.js";
+import { handleNetworkStatus } from "../commands/network.js";
+import {
+  handlePeerList,
+  handlePeerInspect,
+  handlePeerConnect,
+  handlePeerDisconnect,
+  handlePeerBlock,
+  handlePeerUnblock,
+} from "../commands/peer.js";
+import {
+  handleCapabilityList,
+  handleCapabilitySearch,
+  handleCapabilityInspect,
+  handleCapabilityRegister,
+  handleCapabilityInvoke,
+} from "../commands/capability.js";
+import { handleReputationShow } from "../commands/reputation.js";
 
 function printUsage(): void {
   console.log(`
@@ -109,6 +126,28 @@ Commands:
         --expand-graph                        Traverse Knowledge Graph (default: true)
         --depth <n>                           Graph traversal depth (default: 2)
         --top-k <n>                           Number of vector chunks (default: 5)
+
+  network status [options]                    Display decentralized agent identity & network status
+      Options:
+        --storage <dir>                       Network storage path (default: .network-store)
+
+  peer list [options]                         List all known & discovered peers
+  peer inspect <id> [options]                 Inspect peer capabilities, trust & reputation history
+  peer connect <address|id> [options]         Connect / register peer (--pubkey, --address)
+  peer disconnect <id>                        Disconnect from peer
+  peer block <id> [--reason <reason>]         Block peer and reject all future requests
+  peer unblock <id>                           Unblock peer from local blocklist
+
+  capability list [options]                   List available local and discovered capabilities
+  capability search <query> [options]         Search capability marketplace by keyword
+  capability inspect <id> [options]           Inspect capability schema, risk, and permissions
+  capability register --file <manifest>       Register new capability from JSON manifest
+  capability invoke <id> <cap> [options]      Invoke remote capability with policy enforcement
+      Options:
+        --params <json>                       Inline JSON parameters
+        --file <path>                         Path to JSON parameters file
+
+  reputation show <id> [options]              Show peer reputation score & evidence history
 
   --help, -h                                  Show this help menu
 `);
@@ -488,6 +527,146 @@ export async function runCLI(argv: string[]): Promise<void> {
             topK: parsed.options["top-k"] ? parseInt(parsed.options["top-k"], 10) : undefined,
             path: parsed.options["path"],
             vectorPath: parsed.options["vector-path"],
+          });
+        } else {
+          printUsage();
+        }
+        break;
+
+      case "network":
+        if (parsed.subcommand === "status" || !parsed.subcommand) {
+          await handleNetworkStatus({
+            storageDir: parsed.options["storage"] || parsed.options["dir"],
+          });
+        } else {
+          printUsage();
+        }
+        break;
+
+      case "peer":
+        if (parsed.subcommand === "list") {
+          await handlePeerList({
+            format: parsed.options["format"],
+            storageDir: parsed.options["storage"] || parsed.options["dir"],
+          });
+        } else if (parsed.subcommand === "inspect") {
+          const id = parsed.positionals[0] || parsed.options["id"] || parsed.options["agent"];
+          if (!id) {
+            console.error("Error: Peer ID is required for inspect");
+            process.exit(1);
+          }
+          await handlePeerInspect(id, {
+            format: parsed.options["format"],
+            storageDir: parsed.options["storage"] || parsed.options["dir"],
+          });
+        } else if (parsed.subcommand === "connect") {
+          const addrOrId =
+            parsed.positionals[0] || parsed.options["address"] || parsed.options["id"];
+          if (!addrOrId) {
+            console.error("Error: Address or Peer ID is required for connect");
+            process.exit(1);
+          }
+          await handlePeerConnect(addrOrId, {
+            pubkey: parsed.options["pubkey"] || parsed.options["public-key"],
+            address: parsed.options["address"],
+            storageDir: parsed.options["storage"] || parsed.options["dir"],
+          });
+        } else if (parsed.subcommand === "disconnect") {
+          const id = parsed.positionals[0] || parsed.options["id"] || parsed.options["agent"];
+          if (!id) {
+            console.error("Error: Peer ID is required for disconnect");
+            process.exit(1);
+          }
+          await handlePeerDisconnect(id, {
+            storageDir: parsed.options["storage"] || parsed.options["dir"],
+          });
+        } else if (parsed.subcommand === "block") {
+          const id = parsed.positionals[0] || parsed.options["id"] || parsed.options["agent"];
+          if (!id) {
+            console.error("Error: Peer ID is required for block");
+            process.exit(1);
+          }
+          await handlePeerBlock(id, {
+            reason: parsed.options["reason"],
+            storageDir: parsed.options["storage"] || parsed.options["dir"],
+          });
+        } else if (parsed.subcommand === "unblock") {
+          const id = parsed.positionals[0] || parsed.options["id"] || parsed.options["agent"];
+          if (!id) {
+            console.error("Error: Peer ID is required for unblock");
+            process.exit(1);
+          }
+          await handlePeerUnblock(id, {
+            storageDir: parsed.options["storage"] || parsed.options["dir"],
+          });
+        } else {
+          printUsage();
+        }
+        break;
+
+      case "capability":
+        if (parsed.subcommand === "list") {
+          await handleCapabilityList({
+            format: parsed.options["format"],
+            storageDir: parsed.options["storage"] || parsed.options["dir"],
+          });
+        } else if (parsed.subcommand === "search") {
+          const query = parsed.positionals.join(" ") || parsed.options["query"] || "";
+          await handleCapabilitySearch(query, {
+            format: parsed.options["format"],
+            storageDir: parsed.options["storage"] || parsed.options["dir"],
+          });
+        } else if (parsed.subcommand === "inspect") {
+          const id = parsed.positionals[0] || parsed.options["id"];
+          if (!id) {
+            console.error("Error: Capability ID is required for inspect");
+            process.exit(1);
+          }
+          await handleCapabilityInspect(id, {
+            format: parsed.options["format"],
+            storageDir: parsed.options["storage"] || parsed.options["dir"],
+          });
+        } else if (parsed.subcommand === "register") {
+          const file = parsed.options["file"] || parsed.positionals[0];
+          if (!file) {
+            console.error("Error: Manifest file path is required (--file <manifest.json>)");
+            process.exit(1);
+          }
+          await handleCapabilityRegister(file, {
+            storageDir: parsed.options["storage"] || parsed.options["dir"],
+          });
+        } else if (parsed.subcommand === "invoke") {
+          const agentId =
+            parsed.positionals[0] || parsed.options["agent"] || parsed.options["peer"];
+          const capId =
+            parsed.positionals[1] ||
+            parsed.options["capability"] ||
+            parsed.options["cap"] ||
+            parsed.options["id"];
+          if (!agentId || !capId) {
+            console.error("Error: Both peer ID and capability ID are required for invoke");
+            process.exit(1);
+          }
+          await handleCapabilityInvoke(agentId, capId, {
+            params: parsed.options["params"],
+            file: parsed.options["file"],
+            storageDir: parsed.options["storage"] || parsed.options["dir"],
+          });
+        } else {
+          printUsage();
+        }
+        break;
+
+      case "reputation":
+        if (parsed.subcommand === "show" || !parsed.subcommand) {
+          const id = parsed.positionals[0] || parsed.options["id"] || parsed.options["agent"];
+          if (!id) {
+            console.error("Error: Peer ID is required for reputation show");
+            process.exit(1);
+          }
+          await handleReputationShow(id, {
+            format: parsed.options["format"],
+            storageDir: parsed.options["storage"] || parsed.options["dir"],
           });
         } else {
           printUsage();

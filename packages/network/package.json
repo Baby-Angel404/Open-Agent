@@ -1,0 +1,29 @@
+{
+  "name": "@open-agent/network",
+  "version": "0.1.0",
+  "description": "Decentralized agent networking, cryptographic identity, and capability marketplace with policy enforcement for OpenAgent Infrastructure",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "rm -rf dist && tsc",
+    "test": "node --test dist/tests/",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo 'No lint errors in network'",
+    "format": "prettier --write \"src/**/*.{ts,json}\"",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@open-agent/core": "*",
+    "@open-agent/vector": "*",
+    "@open-agent/graph": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "license": "Apache-2.0"
+}

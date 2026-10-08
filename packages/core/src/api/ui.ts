@@ -140,6 +140,7 @@ export function renderDashboardHtml(): string {
     <button class="tab-btn" onclick="switchTab('replay')">Deterministic Replay</button>
     <button class="tab-btn" onclick="switchTab('rag')">RAG Explorer</button>
     <button class="tab-btn" onclick="switchTab('graph')">Graph Explorer</button>
+    <button class="tab-btn" onclick="switchTab('network')">Network Explorer</button>
   </div>
 
   <div id="tab-sessions" class="view-panel active card">
@@ -299,6 +300,83 @@ export function renderDashboardHtml(): string {
         <button class="action-btn" onclick="runGraphRagQuery()">Ask Graph RAG</button>
       </div>
       <div id="graphRagAnswerBox" style="margin-top: 12px;"></div>
+    </div>
+  </div>
+
+  <div id="tab-network" class="view-panel card">
+    <h3>Decentralized Agent Network & Capability Marketplace</h3>
+    
+    <div id="networkNodeStatusBox" style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 6px; margin: 12px 0;">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div>
+          <div>Local Agent ID: <code id="netLocalAgentId" style="color: var(--accent);">Not Initialized</code></div>
+          <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Public Key: <span id="netLocalPubKey">-</span></div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <span class="badge success" id="netNodeStatus">ACTIVE</span>
+          <span class="badge" id="netPeersCount">0 Peers</span>
+          <span class="badge" id="netCapsCount">0 Capabilities</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+      <div>
+        <h4>Known & Discovered Peers</h4>
+        <table>
+          <thead>
+            <tr>
+              <th>Agent ID</th>
+              <th>Trust</th>
+              <th>Rep</th>
+              <th>Caps</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="peersTableBody">
+            <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Loading peers...</td></tr>
+          </tbody>
+        </table>
+
+        <div style="margin-top: 16px; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 6px;">
+          <h5>Connect / Register Peer</h5>
+          <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+            <input type="text" id="connectAgentId" placeholder="Agent ID (agent_...)" style="padding: 6px 8px; border-radius: 6px; background: #000; color: #fff; border: 1px solid var(--border); font-size: 0.8rem;">
+            <input type="text" id="connectPubKey" placeholder="Ed25519 Public Key (Hex)" style="padding: 6px 8px; border-radius: 6px; background: #000; color: #fff; border: 1px solid var(--border); font-size: 0.8rem;">
+            <input type="text" id="connectAddress" placeholder="Address (http://127.0.0.1:4243)" style="padding: 6px 8px; border-radius: 6px; background: #000; color: #fff; border: 1px solid var(--border); font-size: 0.8rem;">
+            <button class="action-btn" style="padding: 6px 12px;" onclick="registerPeerForm()">Register Peer</button>
+          </div>
+          <div id="connectResultBox" style="margin-top: 6px;"></div>
+        </div>
+      </div>
+
+      <div>
+        <h4>Capability Directory</h4>
+        <table>
+          <thead>
+            <tr>
+              <th>Capability</th>
+              <th>Risk</th>
+              <th>Version</th>
+              <th>Providers</th>
+            </tr>
+          </thead>
+          <tbody id="capabilitiesTableBody">
+            <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Loading capabilities...</td></tr>
+          </tbody>
+        </table>
+
+        <div style="margin-top: 16px; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 6px;">
+          <h5>Remote Capability Invocation Tester</h5>
+          <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+            <input type="text" id="invokePeerId" placeholder="Target Peer Agent ID" style="padding: 6px 8px; border-radius: 6px; background: #000; color: #fff; border: 1px solid var(--border); font-size: 0.8rem;">
+            <input type="text" id="invokeCapId" placeholder="Capability ID (e.g. document.search@1.0)" style="padding: 6px 8px; border-radius: 6px; background: #000; color: #fff; border: 1px solid var(--border); font-size: 0.8rem;">
+            <textarea id="invokeParamsJson" placeholder='{"query": "distributed consensus", "top_k": 3}' rows="3" style="padding: 6px 8px; border-radius: 6px; background: #000; color: #fff; border: 1px solid var(--border); font-family: monospace; font-size: 0.8rem;"></textarea>
+            <button class="action-btn" style="padding: 6px 12px;" onclick="invokeCapabilityTest()">Invoke Capability (Policy Guarded)</button>
+          </div>
+          <div id="invokeResultBox" style="margin-top: 8px;"></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -677,11 +755,169 @@ export function renderDashboardHtml(): string {
     loadData();
     loadRagCollections();
     loadGraphEntities();
+    loadNetworkData();
     setInterval(() => {
       loadData();
       loadRagCollections();
       loadGraphEntities();
+      loadNetworkData();
     }, 5000);
+
+    async function loadNetworkData() {
+      try {
+        const [statRes, peersRes, capsRes] = await Promise.all([
+          fetch('/api/v1/network/status').then(r => r.json()).catch(() => ({ success: false })),
+          fetch('/api/v1/peers').then(r => r.json()).catch(() => ({ success: false })),
+          fetch('/api/v1/capabilities').then(r => r.json()).catch(() => ({ success: false }))
+        ]);
+
+        if (statRes && statRes.success && statRes.data) {
+          const s = statRes.data;
+          document.getElementById('netLocalAgentId').textContent = s.agent_id || 'Initialized';
+          document.getElementById('netLocalPubKey').textContent = (s.public_key || '').substring(0, 24) + '...';
+          document.getElementById('netNodeStatus').textContent = s.status || 'ACTIVE';
+          document.getElementById('netPeersCount').textContent = \`\${s.peers_count || 0} Peers\`;
+          document.getElementById('netCapsCount').textContent = \`\${s.capabilities_count || 0} Capabilities\`;
+        }
+
+        if (peersRes && peersRes.success && Array.isArray(peersRes.data)) {
+          const tbody = document.getElementById('peersTableBody');
+          if (peersRes.data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No peers registered yet</td></tr>';
+          } else {
+            tbody.innerHTML = peersRes.data.map(p => \`
+              <tr>
+                <td><code>\${p.agent_id.substring(0, 14)}...</code></td>
+                <td><span class="badge \${p.trust_state === 'TRUSTED' || p.trust_state === 'VERIFIED' ? 'success' : p.trust_state === 'BLOCKED' ? 'danger' : 'warning'}">\${p.trust_state}</span></td>
+                <td><strong>\${p.reputation_score !== undefined ? p.reputation_score : '-'}</strong></td>
+                <td>\${(p.capabilities || []).length}</td>
+                <td>
+                  \${p.trust_state === 'BLOCKED' ? 
+                    \`<button class="action-btn" style="padding: 2px 6px; font-size: 0.75rem; background: var(--success); color: #000;" onclick="unblockPeer('\${p.agent_id}')">Unblock</button>\` :
+                    \`<button class="action-btn" style="padding: 2px 6px; font-size: 0.75rem; background: var(--danger); color: #fff;" onclick="blockPeer('\${p.agent_id}')">Block</button>\`
+                  }
+                </td>
+              </tr>
+            \`).join('');
+          }
+        }
+
+        if (capsRes && capsRes.success && Array.isArray(capsRes.data)) {
+          const tbody = document.getElementById('capabilitiesTableBody');
+          if (capsRes.data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No capabilities registered</td></tr>';
+          } else {
+            tbody.innerHTML = capsRes.data.map(c => \`
+              <tr>
+                <td><strong>\${c.name}</strong><br><code style="font-size: 0.75rem;">\${c.id}</code></td>
+                <td><span class="badge \${c.risk_level === 'LOW' ? 'success' : c.risk_level === 'MEDIUM' ? 'warning' : 'danger'}">\${c.risk_level}</span></td>
+                <td style="color: var(--text-muted); font-size: 0.8rem;">\${c.version}</td>
+                <td>\${c.providers ? c.providers.length : 1}</td>
+              </tr>
+            \`).join('');
+          }
+        }
+      } catch (err) {
+        console.warn('Network data load skipped / unavailable:', err.message);
+      }
+    }
+
+    async function registerPeerForm() {
+      const aid = document.getElementById('connectAgentId').value.trim();
+      const pub = document.getElementById('connectPubKey').value.trim();
+      const addr = document.getElementById('connectAddress').value.trim();
+      const box = document.getElementById('connectResultBox');
+      if (!aid || !pub) {
+        box.innerHTML = '<div class="alert-banner">Agent ID and Public Key are required.</div>';
+        return;
+      }
+      try {
+        const res = await fetch('/api/v1/peers/connect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agent_id: aid, public_key: pub, addresses: addr ? [addr] : [] })
+        }).then(r => r.json());
+        if (res.success) {
+          box.innerHTML = '<div style="color: var(--success); font-size: 0.8rem;">✓ Peer registered successfully.</div>';
+          loadNetworkData();
+        } else {
+          box.innerHTML = \`<div class="alert-banner">\${res.error}</div>\`;
+        }
+      } catch (err) {
+        box.innerHTML = '<div class="alert-banner">' + err.message + '</div>';
+      }
+    }
+
+    async function blockPeer(agentId) {
+      if (!confirm('Block peer ' + agentId + '? All further requests will be rejected.')) return;
+      try {
+        await fetch('/api/v1/peers/' + encodeURIComponent(agentId) + '/block', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason: 'Admin manual block via console' })
+        });
+        loadNetworkData();
+      } catch (err) {
+        alert('Failed to block peer: ' + err.message);
+      }
+    }
+
+    async function unblockPeer(agentId) {
+      try {
+        await fetch('/api/v1/peers/' + encodeURIComponent(agentId) + '/unblock', {
+          method: 'POST'
+        });
+        loadNetworkData();
+      } catch (err) {
+        alert('Failed to unblock peer: ' + err.message);
+      }
+    }
+
+    async function invokeCapabilityTest() {
+      const peerId = document.getElementById('invokePeerId').value.trim();
+      const capId = document.getElementById('invokeCapId').value.trim();
+      const paramsRaw = document.getElementById('invokeParamsJson').value.trim();
+      const box = document.getElementById('invokeResultBox');
+
+      if (!peerId || !capId) {
+        box.innerHTML = '<div class="alert-banner">Target Peer ID and Capability ID required.</div>';
+        return;
+      }
+      let params = {};
+      try {
+        if (paramsRaw) params = JSON.parse(paramsRaw);
+      } catch {
+        box.innerHTML = '<div class="alert-banner">Invalid JSON parameters.</div>';
+        return;
+      }
+
+      box.innerHTML = '<p style="color: var(--text-muted);">Evaluating local policy & sending invocation...</p>';
+      try {
+        const res = await fetch('/api/v1/capabilities/invoke', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            peer_id: peerId,
+            capability_id: capId,
+            parameters: params
+          })
+        }).then(r => r.json());
+
+        if (res.success) {
+          box.innerHTML = \`
+            <div style="background: rgba(0,0,0,0.4); border-left: 3px solid var(--success); padding: 10px; border-radius: 4px;">
+              <div style="color: var(--success); font-weight: bold;">✓ Invocation Succeeded (Policy Approved)</div>
+              <pre style="margin-top: 6px; max-height: 200px;">\${JSON.stringify(res.data, null, 2)}</pre>
+            </div>
+          \`;
+          loadNetworkData();
+        } else {
+          box.innerHTML = \`<div class="alert-banner">Invocation Denied/Failed: \${res.error}</div>\`;
+        }
+      } catch (err) {
+        box.innerHTML = '<div class="alert-banner">Failed: ' + err.message + '</div>';
+      }
+    }
   </script>
 </body>
 </html>`;

@@ -29,6 +29,9 @@ venv/
 *.db
 .audit-logs/
 audit-events.jsonl
+.network-store/
+.vector-store/
+.graph-store/
 
 # Environment and secrets
 .env

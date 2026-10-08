@@ -20,6 +20,8 @@ export class PolicyEngine {
     "input_password",
     "submit_payment",
     "network_exfiltrate",
+    "remote_execution",
+    "sensitive_data_transfer",
   ]);
 
   /**
@@ -129,6 +131,14 @@ export class PolicyEngine {
     if (pattern.startsWith("*.") && target.includes(".")) {
       const suffix = pattern.slice(2);
       return target.endsWith(suffix);
+    }
+    if (pattern.endsWith(":*")) {
+      const prefix = pattern.slice(0, -2);
+      return target.startsWith(prefix + ":") || target === prefix;
+    }
+    if (pattern.endsWith("*")) {
+      const prefix = pattern.slice(0, -1);
+      return target.startsWith(prefix);
     }
     return false;
   }
