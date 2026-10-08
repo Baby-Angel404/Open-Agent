@@ -1,4 +1,4 @@
-name: CI
+name: CI & Security Validation
 
 on:
   push:
@@ -6,20 +6,22 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   validate:
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
         node-version: [20.x, 22.x]
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 
       - name: Set up Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@60edb5dd545a775178f525247059d64022d9248e # v4.0.2
         with:
           node-version: ${{ matrix.node-version }}
           cache: "npm"
@@ -36,8 +38,22 @@ jobs:
       - name: Run type checking
         run: npm run typecheck
 
-      - name: Build packages and CLI
+      - name: Build packages and apps
         run: npm run build
 
       - name: Execute automated test suite
         run: npm run test
+
+      - name: Execute Phase 9 security regression suite
+        run: npm run test:security
+
+      - name: Generate CycloneDX & SPDX SBOMs
+        run: npm run sbom
+
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4.3.1
+        with:
+          name: sbom-${{ matrix.node-version }}
+          path: |
+            sbom.cyclonedx.json
+            sbom.spdx.json

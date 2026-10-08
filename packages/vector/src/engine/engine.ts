@@ -104,7 +104,9 @@ export class VectorEngine {
       throw new Error("Collection dimension must be a positive integer");
     }
 
-    const id = options.collection_id || options.name.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+    const id = FileSystemStorageBackend.validateCollectionId(
+      options.collection_id || options.name.toLowerCase().replace(/[^a-z0-9_-]/g, "_")
+    );
 
     if (this.containers.has(id)) {
       throw new Error(`Collection with ID '${id}' already exists`);

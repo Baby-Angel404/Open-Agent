@@ -79,6 +79,17 @@ export class LocalAPIServer {
     return this.networkHandler;
   }
 
+  private isAllowedHost(host?: string): boolean {
+    if (!host) return true;
+    try {
+      const hostname = host.startsWith("[") ? host.slice(1, host.indexOf("]")) : host.split(":")[0];
+      const lower = hostname.toLowerCase();
+      return lower === "localhost" || lower === "127.0.0.1" || lower === "::1";
+    } catch {
+      return false;
+    }
+  }
+
   private isAllowedOrigin(origin?: string): boolean {
     if (!origin) return true; // Direct tools, curl, CLI
     try {
@@ -144,6 +155,13 @@ export class LocalAPIServer {
   }
 
   async handleRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+    const host = req.headers.host;
+    if (host && !this.isAllowedHost(host)) {
+      res.writeHead(403, { "Content-Type": "text/plain" });
+      res.end("Forbidden: Invalid Host header rejected by local security boundary");
+      return;
+    }
+
     const origin = req.headers.origin;
     if (origin && !this.isAllowedOrigin(origin)) {
       res.writeHead(403, { "Content-Type": "text/plain" });

@@ -1,0 +1,26 @@
+# OpenAgent Infrastructure Code Ownership
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Global fallback maintainers
+* @openagent-maintainers
+
+# Security critical boundaries and policy engine
+/packages/core/src/policy/ @openagent-security
+/packages/core/src/executor/ @openagent-security
+/packages/core/src/audit/ @openagent-security
+/packages/core/src/security/ @openagent-security
+/packages/core/src/tests/security-*.test.ts @openagent-security
+
+# Networking and cryptographic identity
+/packages/network/src/identity/ @openagent-security @openagent-network
+/packages/network/src/protocol/ @openagent-security @openagent-network
+/packages/network/src/invocation/ @openagent-security @openagent-network
+
+# Desktop vault and sandboxing
+/apps/desktop/src/main/vault.ts @openagent-security @openagent-desktop
+/apps/desktop/src/main/backup.ts @openagent-security @openagent-desktop
+/apps/desktop/src/main/ipc.ts @openagent-security @openagent-desktop
+
+# Workflows and release engineering
+/.github/workflows/ @openagent-release-eng
+/scripts/ @openagent-release-eng

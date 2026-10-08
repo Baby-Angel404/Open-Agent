@@ -56,6 +56,7 @@ export class AppendOnlyAuditStore {
   private sequenceCounter = 0;
   private redactor: SecretRedactor;
   private retentionConfig: AuditRetentionConfig;
+  private corruptedLineCount = 0;
 
   constructor(
     filePath?: string,
@@ -75,6 +76,10 @@ export class AppendOnlyAuditStore {
     }
   }
 
+  getCorruptedLineCount(): number {
+    return this.corruptedLineCount;
+  }
+
   private loadExistingLogs(): void {
     if (!this.logPath || !fs.existsSync(this.logPath)) {
       return;
@@ -91,7 +96,7 @@ export class AppendOnlyAuditStore {
           this.sequenceCounter++;
         }
       } catch {
-        // Skip corrupted line in non-fatal load
+        this.corruptedLineCount++;
       }
     }
   }
@@ -143,6 +148,14 @@ export class AppendOnlyAuditStore {
     initialPrevHash?: string
   ): AuditVerificationResult {
     const list = customEntries || this.entries;
+    if (!customEntries && this.corruptedLineCount > 0) {
+      return {
+        valid: false,
+        totalEntries: list.length,
+        verifiedEntries: 0,
+        reason: `Audit log file contains ${this.corruptedLineCount} corrupted or unparseable record(s)`,
+      };
+    }
     if (list.length === 0) {
       return { valid: true, totalEntries: 0, verifiedEntries: 0 };
     }

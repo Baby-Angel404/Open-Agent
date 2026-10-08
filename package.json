@@ -12,6 +12,8 @@
     "test": "npm run test --workspace=@open-agent/vector && npm run test --workspace=@open-agent/graph && npm run test --workspace=@open-agent/network && npm run test --workspace=@open-agent/core && npm run test --workspace=@open-agent/cli && npm run test --workspace=@open-agent/desktop",
     "typecheck": "npm run typecheck --workspace=@open-agent/vector && npm run typecheck --workspace=@open-agent/graph && npm run typecheck --workspace=@open-agent/network && npm run typecheck --workspace=@open-agent/core && npm run typecheck --workspace=@open-agent/cli && npm run typecheck --workspace=@open-agent/desktop",
     "package:desktop": "npm run package --workspace=@open-agent/desktop",
+    "test:security": "node --test packages/core/dist/tests/security-regression-suite.test.js",
+    "sbom": "node scripts/generate-sbom.mjs",
     "lint": "npm run lint --workspaces --if-present",
     "format": "prettier --write \"**/*.{ts,js,json,md,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{ts,js,json,md,yml,yaml}\""

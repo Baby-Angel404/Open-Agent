@@ -1,0 +1,173 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "serialNumber": "urn:uuid:1129a5ae-a91b-4ff6-9ee7-573ef8f93e48",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-10-08T21:14:48.097Z",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "name": "OpenAgent SBOM Generator",
+          "version": "1.0.0"
+        }
+      ]
+    },
+    "component": {
+      "type": "application",
+      "bom-ref": "pkg:npm/open-agent-infrastructure@0.1.0",
+      "name": "open-agent-infrastructure",
+      "version": "0.1.0",
+      "description": "Foundational open-source infrastructure platform for policy-controlled autonomous agents",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ]
+    }
+  },
+  "components": [
+    {
+      "type": "application",
+      "bom-ref": "pkg:npm/@open-agent/core@0.1.0",
+      "name": "@open-agent/core",
+      "version": "0.1.0",
+      "description": "Foundational types, deterministic policy engine, and audit logging for OpenAgent Infrastructure",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "purl": "pkg:npm/@open-agent/core@0.1.0",
+      "properties": [
+        {
+          "name": "openagent:workspace-path",
+          "value": "packages/core"
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "pkg:npm/@open-agent/graph@0.1.0",
+      "name": "@open-agent/graph",
+      "version": "0.1.0",
+      "description": "Local-first Knowledge Graph and Graph RAG engine with evidence provenance for OpenAgent Infrastructure",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "purl": "pkg:npm/@open-agent/graph@0.1.0",
+      "properties": [
+        {
+          "name": "openagent:workspace-path",
+          "value": "packages/graph"
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "pkg:npm/@open-agent/network@0.1.0",
+      "name": "@open-agent/network",
+      "version": "0.1.0",
+      "description": "Decentralized agent networking, cryptographic identity, and capability marketplace with policy enforcement for OpenAgent Infrastructure",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "purl": "pkg:npm/@open-agent/network@0.1.0",
+      "properties": [
+        {
+          "name": "openagent:workspace-path",
+          "value": "packages/network"
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "pkg:npm/@open-agent/vector@0.1.0",
+      "name": "@open-agent/vector",
+      "version": "0.1.0",
+      "description": "Lightweight local hybrid vector engine (dense vector + sparse BM25) for OpenAgent Infrastructure",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "purl": "pkg:npm/@open-agent/vector@0.1.0",
+      "properties": [
+        {
+          "name": "openagent:workspace-path",
+          "value": "packages/vector"
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "pkg:npm/@open-agent/cli@0.1.0",
+      "name": "@open-agent/cli",
+      "version": "0.1.0",
+      "description": "Command-line interface for OpenAgent Infrastructure",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "purl": "pkg:npm/@open-agent/cli@0.1.0",
+      "properties": [
+        {
+          "name": "openagent:workspace-path",
+          "value": "apps/cli"
+        }
+      ]
+    },
+    {
+      "type": "application",
+      "bom-ref": "pkg:npm/@open-agent/desktop@0.1.0",
+      "name": "@open-agent/desktop",
+      "version": "0.1.0",
+      "description": "Cross-platform desktop application for OpenAgent Infrastructure",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "purl": "pkg:npm/@open-agent/desktop@0.1.0",
+      "properties": [
+        {
+          "name": "openagent:workspace-path",
+          "value": "apps/desktop"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "pkg:npm/open-agent-infrastructure@0.1.0",
+      "dependsOn": [
+        "pkg:npm/@open-agent/core@0.1.0",
+        "pkg:npm/@open-agent/graph@0.1.0",
+        "pkg:npm/@open-agent/network@0.1.0",
+        "pkg:npm/@open-agent/vector@0.1.0",
+        "pkg:npm/@open-agent/cli@0.1.0",
+        "pkg:npm/@open-agent/desktop@0.1.0"
+      ]
+    }
+  ]
+}

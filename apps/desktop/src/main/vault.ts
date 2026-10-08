@@ -1,5 +1,6 @@
 import { createCipheriv, createDecipheriv, randomBytes, pbkdf2Sync } from "node:crypto";
 import { promises as fs } from "node:fs";
+import * as fsSync from "node:fs";
 import * as path from "node:path";
 
 interface VaultEntry {
@@ -22,10 +23,22 @@ export class CredentialVault {
 
   constructor(vaultDir: string, passphrase?: string) {
     this.vaultFile = path.join(vaultDir, "vault.enc");
-    // Derive key using node machine identifier or provided passphrase
-    const effectivePassphrase =
-      passphrase || process.env.OPENAGENT_VAULT_KEY || "openagent-local-desktop-vault-default";
-    const salt = Buffer.from("openagent-salt-static-v1");
+    let effectivePassphrase = passphrase || process.env.OPENAGENT_VAULT_KEY;
+    if (!effectivePassphrase) {
+      const keyFile = path.join(vaultDir, ".vault_key");
+      try {
+        if (fsSync.existsSync(keyFile)) {
+          effectivePassphrase = fsSync.readFileSync(keyFile, "utf-8").trim();
+        } else {
+          fsSync.mkdirSync(vaultDir, { recursive: true });
+          effectivePassphrase = randomBytes(32).toString("hex");
+          fsSync.writeFileSync(keyFile, effectivePassphrase, { encoding: "utf-8", mode: 0o600 });
+        }
+      } catch {
+        effectivePassphrase = randomBytes(32).toString("hex");
+      }
+    }
+    const salt = Buffer.from(`openagent-salt-${path.resolve(vaultDir)}`);
     this.masterKey = pbkdf2Sync(effectivePassphrase, salt, 100_000, 32, "sha256");
   }
 

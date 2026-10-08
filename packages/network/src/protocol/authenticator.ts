@@ -10,15 +10,20 @@ export const DEFAULT_NETWORK_LIMITS: NetworkLimits = {
   max_requests_per_peer_per_minute: 60,
   max_requests_per_capability_per_minute: 30,
   clock_skew_tolerance_ms: 5 * 60 * 1000, // 5 minutes
+  max_cached_nonces: 50_000,
 };
 
 export class MessageAuthenticator {
-  private limits: NetworkLimits;
+  private limits: Required<NetworkLimits>;
   // Nonce -> Expiration timestamp
   private seenNonces: Map<string, number> = new Map();
 
   constructor(limits: Partial<NetworkLimits> = {}) {
-    this.limits = { ...DEFAULT_NETWORK_LIMITS, ...limits };
+    this.limits = {
+      ...DEFAULT_NETWORK_LIMITS,
+      max_cached_nonces: 50_000,
+      ...limits,
+    };
   }
 
   /**
@@ -163,7 +168,16 @@ export class MessageAuthenticator {
       return { valid: false, error: "Cryptographic signature verification failed" };
     }
 
-    // Register nonce with expiration
+    // Register nonce with expiration, enforcing bounded cache size (OA-SEC-005)
+    if (this.seenNonces.size >= this.limits.max_cached_nonces) {
+      this.purgeExpiredNonces();
+      while (this.seenNonces.size >= this.limits.max_cached_nonces) {
+        const oldestKey = this.seenNonces.keys().next().value;
+        if (!oldestKey) break;
+        this.seenNonces.delete(oldestKey);
+      }
+    }
+
     this.seenNonces.set(nonceKey, now + this.limits.clock_skew_tolerance_ms);
     return { valid: true };
   }

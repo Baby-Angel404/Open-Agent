@@ -150,6 +150,7 @@ export interface NetworkLimits {
   max_requests_per_peer_per_minute: number;
   max_requests_per_capability_per_minute: number;
   clock_skew_tolerance_ms: number;
+  max_cached_nonces?: number;
 }
 
 export interface HandshakeHello {

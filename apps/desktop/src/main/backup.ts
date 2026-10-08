@@ -134,7 +134,13 @@ export class BackupEngine {
       for (const item of archive.manifest.files) {
         // Path traversal validation
         const normalized = path.normalize(item.relativePath);
-        if (normalized.startsWith("..") || path.isAbsolute(normalized)) {
+        const resolved = path.resolve(this.appDataDir, normalized);
+        const appDataResolved = path.resolve(this.appDataDir);
+        if (
+          normalized.startsWith("..") ||
+          path.isAbsolute(normalized) ||
+          (resolved !== appDataResolved && !resolved.startsWith(appDataResolved + path.sep))
+        ) {
           return {
             valid: false,
             error: `Malicious path detected in archive: ${item.relativePath}`,
@@ -179,17 +185,19 @@ export class BackupEngine {
     const archive: BackupArchive = JSON.parse(content);
 
     let restoredCount = 0;
+    const appDataResolved = path.resolve(this.appDataDir);
+
     for (const item of verification.manifest.files) {
       const normalizedRelPath = path.normalize(item.relativePath);
-      if (normalizedRelPath.startsWith("..") || path.isAbsolute(normalizedRelPath)) {
-        throw new Error(`Security violation: Invalid path traversal in file ${item.relativePath}`);
-      }
-
       const targetPath = path.join(this.appDataDir, normalizedRelPath);
+      const resolved = path.resolve(targetPath);
 
       // Verify the final resolved path is strictly within appDataDir
-      const resolved = path.resolve(targetPath);
-      if (!resolved.startsWith(this.appDataDir)) {
+      if (
+        normalizedRelPath.startsWith("..") ||
+        path.isAbsolute(normalizedRelPath) ||
+        (resolved !== appDataResolved && !resolved.startsWith(appDataResolved + path.sep))
+      ) {
         throw new Error(`Security violation: Path escape detected for ${resolved}`);
       }
 

@@ -91,10 +91,28 @@ export class FileSystemStorageBackend implements IStorageBackend {
     }
   }
 
+  public static validateCollectionId(collectionId: string): string {
+    if (!collectionId || typeof collectionId !== "string") {
+      throw new Error("Invalid collection ID: must be a non-empty string");
+    }
+    const trimmed = collectionId.trim();
+    if (!/^[a-zA-Z0-9_-]{1,64}$/.test(trimmed) || trimmed === "." || trimmed === "..") {
+      throw new Error(
+        `Security violation: Invalid or unsafe collection ID '${collectionId}'. Must match ^[a-zA-Z0-9_-]{1,64}$ without directory traversal symbols.`
+      );
+    }
+    return trimmed;
+  }
+
   private getCollectionRecordPath(collectionId: string): string {
-    // Sanitize collection ID against directory traversal
-    const safeId = path.basename(collectionId);
-    return path.join(this.collectionsDir, safeId, "records.jsonl");
+    const safeId = FileSystemStorageBackend.validateCollectionId(collectionId);
+    const targetDir = path.resolve(this.collectionsDir, safeId);
+    if (!targetDir.startsWith(this.collectionsDir + path.sep)) {
+      throw new Error(
+        `Security violation: Path traversal escape detected for collection '${collectionId}'`
+      );
+    }
+    return path.join(targetDir, "records.jsonl");
   }
 
   async saveCollectionRecords(collectionId: string, records: VectorRecord[]): Promise<void> {
@@ -144,8 +162,13 @@ export class FileSystemStorageBackend implements IStorageBackend {
   }
 
   async deleteCollection(collectionId: string): Promise<void> {
-    const safeId = path.basename(collectionId);
-    const colDir = path.join(this.collectionsDir, safeId);
+    const safeId = FileSystemStorageBackend.validateCollectionId(collectionId);
+    const colDir = path.resolve(this.collectionsDir, safeId);
+    if (!colDir.startsWith(this.collectionsDir + path.sep)) {
+      throw new Error(
+        `Security violation: Path traversal escape detected for collection '${collectionId}'`
+      );
+    }
     if (fs.existsSync(colDir)) {
       fs.rmSync(colDir, { recursive: true, force: true });
     }

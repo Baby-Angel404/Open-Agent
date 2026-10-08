@@ -43,7 +43,10 @@ export class PolicyEngine {
     // 2. Domain verification if target is a web address or hostname
     const targetDomain = this.extractDomain(action.target);
     if (targetDomain) {
-      if (policy.deniedDomains?.includes(targetDomain)) {
+      if (
+        policy.deniedDomains &&
+        policy.deniedDomains.some((d) => this.matchesDomain(targetDomain, d))
+      ) {
         return {
           decision: "DENY",
           reason: `Target domain '${targetDomain}' is explicitly in policy deniedDomains`,
@@ -52,7 +55,7 @@ export class PolicyEngine {
       }
 
       if (policy.allowedDomains && policy.allowedDomains.length > 0) {
-        if (!policy.allowedDomains.includes(targetDomain)) {
+        if (!policy.allowedDomains.some((d) => this.matchesDomain(targetDomain, d))) {
           return {
             decision: "DENY",
             reason: `Target domain '${targetDomain}' is not present in policy allowedDomains`,
@@ -120,26 +123,51 @@ export class PolicyEngine {
         const u = new URL(target);
         return u.hostname.toLowerCase();
       }
+      // Support direct hostname target (e.g. "api.example.com" or "localhost")
+      if (
+        !target.includes("/") &&
+        !target.includes(" ") &&
+        (target.includes(".") || target === "localhost")
+      ) {
+        return target.split(":")[0].toLowerCase();
+      }
       return null;
     } catch {
       return null;
     }
   }
 
+  private matchesDomain(domain: string, pattern: string): boolean {
+    const p = pattern.toLowerCase();
+    const d = domain.toLowerCase();
+    if (p === "*" || p === d) return true;
+    if (p.startsWith("*.")) {
+      const suffix = p.slice(2);
+      return d === suffix || d.endsWith("." + suffix);
+    }
+    return false;
+  }
+
   private matchesPattern(target: string, pattern: string): boolean {
     if (pattern === "*" || pattern === target) return true;
-    if (pattern.startsWith("*.") && target.includes(".")) {
-      const suffix = pattern.slice(2);
-      return target.endsWith(suffix);
+
+    // Wildcard domain matching: *.example.com must match sub.example.com or example.com, but NEVER evilexample.com
+    if (pattern.startsWith("*.")) {
+      const suffix = pattern.slice(2).toLowerCase();
+      const domain = this.extractDomain(target) || target.toLowerCase();
+      return domain === suffix || domain.endsWith("." + suffix);
     }
+
     if (pattern.endsWith(":*")) {
       const prefix = pattern.slice(0, -2);
       return target.startsWith(prefix + ":") || target === prefix;
     }
+
     if (pattern.endsWith("*")) {
       const prefix = pattern.slice(0, -1);
       return target.startsWith(prefix);
     }
+
     return false;
   }
 

@@ -13,7 +13,7 @@
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "rm -rf dist && tsc",
     "typecheck": "tsc --noEmit",
     "test": "node --test dist/tests/",
     "lint": "echo 'No lint errors in core'"
@@ -23,6 +23,7 @@
     "@open-agent/graph": "*"
   },
   "devDependencies": {
+    "@open-agent/network": "*",
     "@types/node": "^20.11.0",
     "typescript": "^5.4.5"
   },

@@ -1,23 +1,45 @@
 # Contributing to OpenAgent Infrastructure
 
-Thank you for your interest in contributing to OpenAgent Infrastructure. Because this project is security-sensitive and establishes foundational patterns for autonomous agents, we follow strict design and code quality requirements.
+Thank you for your interest in contributing to OpenAgent Infrastructure. Because this project is security-critical and establishes foundational patterns for autonomous agents, all contributions must uphold strict engineering standards.
 
-## Development Principles
+## Core Engineering Principles
 
-1. **Security Defaults**: Any new action or protocol must default to `DENY` unless explicitly permitted.
-2. **Local-Only**: No external network requests, telemetry, or remote logging in core modules.
-3. **Deterministic Logic**: Core evaluation logic must never be delegated to stochastic models (e.g. LLMs).
-4. **Strict Typing**: All code must pass `tsc --noEmit` without `any` casts or unvalidated inputs.
-5. **Real Automated Tests**: Every PR must include tests that execute code paths and test edge cases.
+1. **Fail-Closed Security**: All components, parsers, and policy evaluators must fail safely (`DENY` or fatal rejection) upon unknown states, malformed inputs, or missing credentials.
+2. **Deterministic Evaluation**: Policy decisions must never rely on non-deterministic external services or LLM hallucinations.
+3. **Defense-in-Depth**: Every boundary (API, network transport, desktop IPC, file storage) validates inputs independently.
+4. **Reproducible & Test-Backed**: Every bugfix or feature must include automated regression tests covering normal paths, malformed payloads, and edge cases.
+5. **Zero Plaintext Secrets**: Sensitive credentials and bearer tokens must never be written to logs or disk in plaintext.
 
-## Workflow
+## Development Setup
 
-1. Fork and create a branch from `main`.
-2. Install dependencies: `npm install`.
-3. Make changes and verify:
-   ```bash
-   npm run typecheck
-   npm run test
-   npm run format:check
-   ```
-4. Submit a Pull Request describing the problem, design decision, and testing verified.
+```bash
+# Clone and setup
+git clone https://github.com/openagent/openagent.git
+cd openagent
+
+# Install dependencies across all workspaces
+npm install
+
+# Build all packages and applications
+npm run build
+
+# Run monorepo test suites
+npm test
+
+# Run security regression tests
+npm run test:security
+
+# Typecheck and formatting verification
+npm run typecheck
+npm run format:check
+```
+
+## Pull Request Guidelines
+
+1. **Branch Naming**: Use descriptive prefixes: `feat/`, `fix/`, `security/`, `docs/`, `refactor/`.
+2. **Commit Conventions**: Follow Conventional Commits format:
+   - `feat(core): add policy condition validator`
+   - `fix(vector): prevent path traversal in storage backend`
+   - `test(security): add test case for host header validation`
+3. **Verification**: Ensure all checks (`npm test`, `npm run test:security`, `npm run typecheck`, `npm run format:check`) pass before submitting.
+4. **Code Review**: At least one approval from a designated component code owner is required before merging.
