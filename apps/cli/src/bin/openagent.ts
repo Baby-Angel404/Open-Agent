@@ -20,10 +20,23 @@ import {
   handleIndexStatus,
   handleVectorBenchmark,
 } from "../commands/vector.js";
+import {
+  handleGraphStatus,
+  handleGraphEntities,
+  handleGraphEntityShow,
+  handleGraphRelationships,
+  handleGraphNeighbors,
+  handleGraphPath,
+  handleGraphSearch,
+  handleGraphIngest,
+  handleGraphVerify,
+  handleGraphRepair,
+} from "../commands/graph.js";
+import { handleRagQuery } from "../commands/rag.js";
 
 function printUsage(): void {
   console.log(`
-OpenAgent CLI - Autonomous Agent, Policy, Replay & Hybrid Vector Engine (Phase 4)
+OpenAgent CLI - Autonomous Agent, Policy, Replay, Vector & Graph RAG Engine (Phase 5)
 
 Usage:
   openagent <command> <subcommand> [options]
@@ -79,6 +92,24 @@ Commands:
 
   benchmark vector [options]                  Run local vector ingestion & retrieval benchmark
 
+  graph status [options]                      Display Knowledge Graph summary & counts
+  graph entities [options]                    List or filter entities (--type, --query, --limit)
+  graph entity <id> [options]                 Show entity details, aliases, and edges
+  graph relationships [options]               List relationships (--predicate, --subject, --object)
+  graph neighbors <id> [options]              Traverse connected entity neighborhood (--depth)
+  graph path <src> <target> [options]         Find shortest directed traversal path (--max-depth)
+  graph search <query> [options]              Search graph entities by name/alias (--limit)
+  graph ingest <file> [options]               Extract and ingest document into Knowledge Graph
+  graph verify [options]                      Verify entity/relationship referential integrity
+  graph repair [options]                      Prune dangling references and repair graph
+
+  rag query "<question>" [options]            Query system using grounded Graph RAG
+      Options:
+        --collection <name>                   Vector collection name
+        --expand-graph                        Traverse Knowledge Graph (default: true)
+        --depth <n>                           Graph traversal depth (default: 2)
+        --top-k <n>                           Number of vector chunks (default: 5)
+
   --help, -h                                  Show this help menu
 `);
 }
@@ -87,10 +118,17 @@ function parseArgs(args: string[]): {
   command: string;
   subcommand?: string;
   options: Record<string, string>;
+  positionals: string[];
 } {
-  const result: { command: string; subcommand?: string; options: Record<string, string> } = {
+  const result: {
+    command: string;
+    subcommand?: string;
+    options: Record<string, string>;
+    positionals: string[];
+  } = {
     command: "",
     options: {},
+    positionals: [],
   };
 
   let idx = 0;
@@ -114,7 +152,7 @@ function parseArgs(args: string[]): {
         idx++;
       }
     } else {
-      // Positional argument for subcommand (e.g. `openagent session replay sess_123`)
+      result.positionals.push(arg);
       if (!result.options["_pos"]) {
         result.options["_pos"] = arg;
       }
@@ -349,6 +387,107 @@ export async function runCLI(argv: string[]): Promise<void> {
             queries: parsed.options["queries"],
             count: parsed.options["count"] ? parseInt(parsed.options["count"], 10) : undefined,
             path: parsed.options["path"],
+          });
+        } else {
+          printUsage();
+        }
+        break;
+
+      case "graph":
+        if (parsed.subcommand === "status") {
+          await handleGraphStatus({ path: parsed.options["path"] });
+        } else if (parsed.subcommand === "entities") {
+          await handleGraphEntities({
+            type: parsed.options["type"],
+            query: parsed.options["query"] || parsed.options["q"],
+            limit: parsed.options["limit"] ? parseInt(parsed.options["limit"], 10) : undefined,
+            path: parsed.options["path"],
+          });
+        } else if (parsed.subcommand === "entity") {
+          const id = parsed.positionals[0] || parsed.options["id"];
+          if (!id) {
+            console.error("Error: Entity ID is required for graph entity");
+            process.exit(1);
+          }
+          await handleGraphEntityShow(id, { path: parsed.options["path"] });
+        } else if (parsed.subcommand === "relationships" || parsed.subcommand === "rels") {
+          await handleGraphRelationships({
+            predicate: parsed.options["predicate"],
+            subject: parsed.options["subject"],
+            object: parsed.options["object"],
+            limit: parsed.options["limit"] ? parseInt(parsed.options["limit"], 10) : undefined,
+            path: parsed.options["path"],
+          });
+        } else if (parsed.subcommand === "neighbors") {
+          const id = parsed.positionals[0] || parsed.options["id"];
+          if (!id) {
+            console.error("Error: Entity ID is required for graph neighbors");
+            process.exit(1);
+          }
+          await handleGraphNeighbors(id, {
+            depth: parsed.options["depth"] ? parseInt(parsed.options["depth"], 10) : undefined,
+            path: parsed.options["path"],
+          });
+        } else if (parsed.subcommand === "path") {
+          const src = parsed.positionals[0] || parsed.options["source"] || parsed.options["from"];
+          const tgt = parsed.positionals[1] || parsed.options["target"] || parsed.options["to"];
+          if (!src || !tgt) {
+            console.error("Error: Source and Target entity IDs are required for graph path");
+            process.exit(1);
+          }
+          await handleGraphPath(src, tgt, {
+            maxDepth: parsed.options["max-depth"]
+              ? parseInt(parsed.options["max-depth"], 10)
+              : undefined,
+            path: parsed.options["path"],
+          });
+        } else if (parsed.subcommand === "search") {
+          const query = parsed.positionals[0] || parsed.options["query"] || parsed.options["q"];
+          if (!query) {
+            console.error("Error: Search query is required for graph search");
+            process.exit(1);
+          }
+          await handleGraphSearch(query, {
+            limit: parsed.options["limit"] ? parseInt(parsed.options["limit"], 10) : undefined,
+            path: parsed.options["path"],
+          });
+        } else if (parsed.subcommand === "ingest") {
+          const file = parsed.positionals[0] || parsed.options["file"];
+          if (!file) {
+            console.error("Error: File path is required for graph ingest");
+            process.exit(1);
+          }
+          await handleGraphIngest(file, {
+            documentId: parsed.options["id"],
+            path: parsed.options["path"],
+          });
+        } else if (parsed.subcommand === "verify") {
+          await handleGraphVerify({ path: parsed.options["path"] });
+        } else if (parsed.subcommand === "repair") {
+          await handleGraphRepair({ path: parsed.options["path"] });
+        } else {
+          printUsage();
+        }
+        break;
+
+      case "rag":
+        if (parsed.subcommand === "query") {
+          const question =
+            parsed.positionals.join(" ") ||
+            parsed.options["question"] ||
+            parsed.options["query"] ||
+            parsed.options["q"];
+          if (!question) {
+            console.error("Error: Question string is required for rag query");
+            process.exit(1);
+          }
+          await handleRagQuery(question, {
+            collection: parsed.options["collection"],
+            expandGraph: parsed.options["expand-graph"] !== "false",
+            depth: parsed.options["depth"] ? parseInt(parsed.options["depth"], 10) : undefined,
+            topK: parsed.options["top-k"] ? parseInt(parsed.options["top-k"], 10) : undefined,
+            path: parsed.options["path"],
+            vectorPath: parsed.options["vector-path"],
           });
         } else {
           printUsage();

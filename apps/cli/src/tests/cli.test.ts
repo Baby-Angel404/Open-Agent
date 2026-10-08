@@ -18,6 +18,16 @@ import {
   handleIndexStatus,
   handleVectorBenchmark,
 } from "../commands/vector.js";
+import {
+  handleGraphIngest,
+  handleGraphStatus,
+  handleGraphEntities,
+  handleGraphSearch,
+  handleGraphRelationships,
+  handleGraphVerify,
+  handleGraphRepair,
+} from "../commands/graph.js";
+import { handleRagQuery } from "../commands/rag.js";
 import { PolicyEngine, AgentAction } from "@open-agent/core";
 
 test("CLI policy loader reads default policy correctly", () => {
@@ -152,4 +162,45 @@ test("CLI vector commands lifecycle (create, add, index, search, status, delete)
 
 test("CLI vector benchmark executes successfully", async () => {
   await handleVectorBenchmark({ count: 100 });
+});
+
+test("CLI Knowledge Graph & Graph RAG end-to-end commands", async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "openagent-cli-graph-test-"));
+  const sampleDoc = path.join(tmpDir, "sample-system.md");
+  fs.writeFileSync(
+    sampleDoc,
+    "OpenAgent Infrastructure uses Rust for high performance retrieval. OpenAgent Infrastructure implements Policy Engine for security boundaries. Policy Engine enforces deterministic checks."
+  );
+
+  // 1. Ingest
+  await handleGraphIngest(sampleDoc, { path: tmpDir });
+
+  // 2. Status
+  await handleGraphStatus({ path: tmpDir });
+
+  // 3. Entities
+  await handleGraphEntities({ path: tmpDir });
+  await handleGraphEntities({ type: "TECHNOLOGY", path: tmpDir });
+  await handleGraphEntities({ query: "Policy", path: tmpDir });
+
+  // 4. Search
+  await handleGraphSearch("Rust", { path: tmpDir });
+
+  // 5. Relationships
+  await handleGraphRelationships({ path: tmpDir });
+  await handleGraphRelationships({ predicate: "IMPLEMENTS", path: tmpDir });
+
+  // 6. Verify & Repair
+  await handleGraphVerify({ path: tmpDir });
+  await handleGraphRepair({ path: tmpDir });
+
+  // 7. Graph RAG query
+  await handleRagQuery("What does OpenAgent Infrastructure implement?", {
+    path: tmpDir,
+    expandGraph: true,
+    depth: 2,
+  });
+
+  // Clean up
+  fs.rmSync(tmpDir, { recursive: true, force: true });
 });

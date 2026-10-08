@@ -8,11 +8,14 @@ import { SessionReplayEngine } from "../replay/engine.js";
 import { renderDashboardHtml } from "./ui.js";
 import { AuditQueryFilter } from "../types/audit.js";
 import { VectorEngine, VectorAPIHandler } from "@open-agent/vector";
+import { FileSystemGraphStorage, GraphRAGEngine, GraphAPIHandler } from "@open-agent/graph";
 
 export interface APIServerOptions {
   runtime: AgentRuntime;
   auditLogger?: LocalAuditLogger | AppendOnlyAuditStore;
   vectorEngine?: VectorEngine;
+  graphStorage?: FileSystemGraphStorage;
+  ragEngine?: GraphRAGEngine;
   port?: number;
   host?: string;
   enableDashboard?: boolean;
@@ -24,6 +27,9 @@ export class LocalAPIServer {
   private auditStore: AppendOnlyAuditStore;
   private vectorEngine: VectorEngine;
   private vectorHandler: VectorAPIHandler;
+  private graphStorage: FileSystemGraphStorage;
+  private ragEngine: GraphRAGEngine;
+  private graphHandler: GraphAPIHandler;
   private port: number;
   private host: string;
   private enableDashboard: boolean;
@@ -40,6 +46,14 @@ export class LocalAPIServer {
     this.replayEngine = new SessionReplayEngine();
     this.vectorEngine = options.vectorEngine || new VectorEngine();
     this.vectorHandler = new VectorAPIHandler(this.vectorEngine);
+    this.graphStorage = options.graphStorage || new FileSystemGraphStorage();
+    this.ragEngine =
+      options.ragEngine ||
+      new GraphRAGEngine({
+        storage: this.graphStorage,
+        vectorEngine: this.vectorEngine,
+      });
+    this.graphHandler = new GraphAPIHandler(this.graphStorage, this.ragEngine);
 
     if (options.auditLogger instanceof AppendOnlyAuditStore) {
       this.auditStore = options.auditLogger;
@@ -154,6 +168,11 @@ export class LocalAPIServer {
         pathname.startsWith("/api/v1/records")
       ) {
         return await this.vectorHandler.handleRequest(req, res);
+      }
+
+      // Graph & Graph RAG Engine routes
+      if (pathname.startsWith("/api/v1/graph") || pathname.startsWith("/api/v1/rag")) {
+        return await this.graphHandler.handleRequest(req, res);
       }
 
       // 0. Dashboard & Health
@@ -338,6 +357,7 @@ export class LocalAPIServer {
 
   async listen(port = this.port): Promise<number> {
     await this.vectorEngine.init();
+    await this.graphStorage.load();
     return new Promise((resolve) => {
       this.server = http.createServer((req, res) => {
         this.handleRequest(req, res);

@@ -19,7 +19,8 @@
     "lint": "echo 'No lint errors in core'"
   },
   "dependencies": {
-    "@open-agent/vector": "*"
+    "@open-agent/vector": "*",
+    "@open-agent/graph": "*"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

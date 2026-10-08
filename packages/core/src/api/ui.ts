@@ -139,6 +139,7 @@ export function renderDashboardHtml(): string {
     <button class="tab-btn" onclick="switchTab('alerts')">Security Alerts</button>
     <button class="tab-btn" onclick="switchTab('replay')">Deterministic Replay</button>
     <button class="tab-btn" onclick="switchTab('rag')">RAG Explorer</button>
+    <button class="tab-btn" onclick="switchTab('graph')">Graph Explorer</button>
   </div>
 
   <div id="tab-sessions" class="view-panel active card">
@@ -230,6 +231,74 @@ export function renderDashboardHtml(): string {
         <button class="action-btn" onclick="runRagSearch()">Search</button>
       </div>
       <div id="ragSearchResults" style="margin-top: 12px;"></div>
+    </div>
+  </div>
+
+  <div id="tab-graph" class="view-panel card">
+    <h3>Local Knowledge Graph & Graph RAG Explorer</h3>
+    
+    <div style="display: flex; gap: 10px; margin: 12px 0; flex-wrap: wrap;">
+      <input type="text" id="graphSearchInput" placeholder="Filter entities by name..." style="padding: 8px; border-radius: 6px; background: #000; color: #fff; border: 1px solid var(--border); flex: 1; min-width: 200px;">
+      <select id="graphTypeFilter" style="padding: 8px; border-radius: 6px; background: #000; color: #fff; border: 1px solid var(--border);">
+        <option value="">All Types</option>
+        <option value="TECHNOLOGY">Technology</option>
+        <option value="CONCEPT">Concept</option>
+        <option value="ORGANIZATION">Organization</option>
+        <option value="PRODUCT">Product</option>
+        <option value="PERSON">Person</option>
+      </select>
+      <button class="action-btn" onclick="loadGraphEntities()">Filter Entities</button>
+      <button class="action-btn" style="background: var(--warning); color: #000;" onclick="verifyGraphIntegrity()">Verify Consistency</button>
+    </div>
+
+    <div id="graphVerifyResult" style="display: none; margin-bottom: 12px;"></div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px;">
+      <div>
+        <h4>Known Graph Entities</h4>
+        <table>
+          <thead>
+            <tr>
+              <th>Canonical Name</th>
+              <th>Type</th>
+              <th>Aliases</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="graphEntitiesBody">
+            <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Loading entities...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div>
+        <h4>Neighborhood & Evidence Traversal</h4>
+        <div id="traversalControls" style="display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;">
+          <input type="text" id="traverseEntityId" placeholder="Selected Entity ID" readonly style="padding: 6px 8px; border-radius: 6px; background: #000; color: #fff; border: 1px solid var(--border); flex: 1;">
+          <select id="traverseDepth" style="padding: 6px 8px; border-radius: 6px; background: #000; color: #fff; border: 1px solid var(--border);">
+            <option value="1">Depth 1</option>
+            <option value="2" selected>Depth 2</option>
+            <option value="3">Depth 3</option>
+          </select>
+          <button class="action-btn" style="padding: 6px 12px;" onclick="runEntityTraversal()">Traverse</button>
+        </div>
+        <div id="traversalResultBox" style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 6px; min-height: 180px;">
+          <p style="color: var(--text-muted);">Select an entity on the left to inspect graph connections and evidence provenance.</p>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top: 24px; border-top: 1px solid var(--border); padding-top: 16px;">
+      <h4>Grounded Graph RAG Query Tester</h4>
+      <div style="display: flex; gap: 10px; margin: 12px 0; flex-wrap: wrap;">
+        <input type="text" id="graphRagQuery" placeholder="Ask question grounded by Knowledge Graph..." style="padding: 8px; border-radius: 6px; background: #000; color: #fff; border: 1px solid var(--border); flex: 1; min-width: 250px;">
+        <input type="text" id="graphRagCollection" placeholder="Vector collection (optional)" style="padding: 8px; border-radius: 6px; background: #000; color: #fff; border: 1px solid var(--border); width: 180px;">
+        <label style="display: flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 0.85rem;">
+          <input type="checkbox" id="graphRagUseGraph" checked> Use Graph Expansion
+        </label>
+        <button class="action-btn" onclick="runGraphRagQuery()">Ask Graph RAG</button>
+      </div>
+      <div id="graphRagAnswerBox" style="margin-top: 12px;"></div>
     </div>
   </div>
 
@@ -462,11 +531,156 @@ export function renderDashboardHtml(): string {
       }
     }
 
+    async function loadGraphEntities() {
+      const q = document.getElementById('graphSearchInput').value.trim();
+      const type = document.getElementById('graphTypeFilter').value;
+      const tbody = document.getElementById('graphEntitiesBody');
+      try {
+        let url = '/api/v1/graph/entities?limit=50';
+        if (q) url += '&query=' + encodeURIComponent(q);
+        if (type) url += '&type=' + encodeURIComponent(type);
+        const res = await fetch(url).then(r => r.json());
+        if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+          tbody.innerHTML = res.data.map(e => \`
+            <tr>
+              <td><strong>\${e.canonical_name}</strong></td>
+              <td><span class="badge">\${e.entity_type}</span></td>
+              <td style="font-size: 0.8rem; color: var(--text-muted);">\${(e.aliases || []).join(', ') || '-'}</td>
+              <td>
+                <button class="action-btn" style="padding: 4px 8px; font-size: 0.75rem;" onclick="selectEntityForTraversal('\${e.id}', '\${e.canonical_name}')">Inspect</button>
+              </td>
+            </tr>
+          \`).join('');
+        } else {
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No entities found. Ingest documents to extract graph elements.</td></tr>';
+        }
+      } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--danger);">Failed to load entities: ' + err.message + '</td></tr>';
+      }
+    }
+
+    function selectEntityForTraversal(id, name) {
+      document.getElementById('traverseEntityId').value = id;
+      runEntityTraversal();
+    }
+
+    async function runEntityTraversal() {
+      const id = document.getElementById('traverseEntityId').value.trim();
+      const depth = parseInt(document.getElementById('traverseDepth').value, 10) || 1;
+      const out = document.getElementById('traversalResultBox');
+      if (!id) {
+        out.innerHTML = '<p style="color: var(--warning);">Please select an entity first.</p>';
+        return;
+      }
+      out.innerHTML = '<p style="color: var(--text-muted);">Traversing neighborhood for entity ' + id + '...</p>';
+      try {
+        const res = await fetch(\`/api/v1/graph/entities/\${id}/neighbors?depth=\${depth}\`).then(r => r.json());
+        if (!res.success) {
+          out.innerHTML = \`<div class="alert-banner">Error: \${res.error?.message || JSON.stringify(res.error)}</div>\`;
+          return;
+        }
+        const data = res.data;
+        out.innerHTML = \`
+          <div style="font-size: 0.85rem; margin-bottom: 8px;">
+            Target: <strong>\${data.targetEntity?.canonical_name || id}</strong> (\${data.targetEntity?.entity_type || 'ENTITY'})
+            | Connected Entities: \${data.entities?.length || 0}
+            | Relationships: \${data.relationships?.length || 0}
+          </div>
+          <div style="margin-top: 8px;">
+            <strong>Relationships:</strong>
+            <ul style="padding-left: 18px; margin: 4px 0; font-size: 0.85rem;">
+              \${(data.relationships || []).map(r => \`
+                <li><code>\${r.predicate}</code> -> <strong>\${r.object_id}</strong> (conf: \${r.confidence})</li>
+              \`).join('') || '<li style="color: var(--text-muted);">No outgoing/incoming relationships at this depth.</li>'}
+            </ul>
+          </div>
+        \`;
+      } catch (err) {
+        out.innerHTML = '<div class="alert-banner">Failed to traverse graph: ' + err.message + '</div>';
+      }
+    }
+
+    async function verifyGraphIntegrity() {
+      const banner = document.getElementById('graphVerifyResult');
+      banner.style.display = 'block';
+      banner.className = 'alert-banner';
+      banner.innerHTML = 'Verifying Knowledge Graph consistency...';
+      try {
+        const res = await fetch('/api/v1/graph/verify', { method: 'POST' }).then(r => r.json());
+        if (res.success && res.data.valid) {
+          banner.style.borderColor = 'var(--success)';
+          banner.style.background = 'rgba(16, 185, 129, 0.1)';
+          banner.style.color = '#6ee7b7';
+          banner.innerHTML = \`✓ Knowledge Graph Consistent: \${res.data.checkedEntities} entities and \${res.data.checkedRelationships} relationships verified with zero anomalies.\`;
+        } else {
+          banner.style.borderColor = 'var(--danger)';
+          banner.style.background = 'rgba(239, 68, 68, 0.1)';
+          banner.style.color = '#fca5a5';
+          banner.innerHTML = \`✗ Graph Integrity Issues Found: \${(res.data?.issues || []).join(', ') || 'Anomalies detected'}\`;
+        }
+      } catch (err) {
+        banner.innerHTML = 'Failed to verify graph: ' + err.message;
+      }
+    }
+
+    async function runGraphRagQuery() {
+      const q = document.getElementById('graphRagQuery').value.trim();
+      const col = document.getElementById('graphRagCollection').value.trim();
+      const useGraph = document.getElementById('graphRagUseGraph').checked;
+      const out = document.getElementById('graphRagAnswerBox');
+      if (!q) {
+        out.innerHTML = '<div class="alert-banner">Please enter a question to query.</div>';
+        return;
+      }
+      out.innerHTML = '<p style="color: var(--text-muted);">Synthesizing grounded answer via Graph RAG...</p>';
+      try {
+        const res = await fetch('/api/v1/rag/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: q,
+            collection: col || undefined,
+            expandGraph: useGraph,
+            maxDepth: 2,
+            topK: 5
+          })
+        }).then(r => r.json());
+
+        if (!res.success) {
+          out.innerHTML = \`<div class="alert-banner">Error: \${res.error?.message || JSON.stringify(res.error)}</div>\`;
+          return;
+        }
+
+        const ans = res.data;
+        out.innerHTML = \`
+          <div style="background: rgba(0,0,0,0.3); border-left: 3px solid var(--accent); padding: 12px; border-radius: 6px; margin-top: 8px;">
+            <div style="font-weight: 600; margin-bottom: 6px; color: #fff;">Answer:</div>
+            <div style="line-height: 1.5; color: var(--text-main);">\${ans.answer}</div>
+            <div style="margin-top: 10px; font-size: 0.8rem; color: var(--text-muted);">
+              Confidence: \${(ans.confidence * 100).toFixed(0)}% | Entities Used: \${ans.context?.entities?.length || 0} | Relationships: \${ans.context?.relationships?.length || 0}
+            </div>
+            \${(ans.citations && ans.citations.length > 0) ? \`
+              <div style="margin-top: 8px; font-size: 0.8rem;">
+                <strong>Citations:</strong>
+                <ul style="padding-left: 18px; margin: 4px 0; color: var(--text-muted);">
+                  \${ans.citations.map(c => \`<li><code>\${c.documentId}</code> (chunk \${c.chunkId}): \${c.snippet}</li>\`).join('')}
+                </ul>
+              </div>
+            \` : ''}
+          </div>
+        \`;
+      } catch (err) {
+        out.innerHTML = '<div class="alert-banner">Graph RAG query failed: ' + err.message + '</div>';
+      }
+    }
+
     loadData();
     loadRagCollections();
+    loadGraphEntities();
     setInterval(() => {
       loadData();
       loadRagCollections();
+      loadGraphEntities();
     }, 5000);
   </script>
 </body>

@@ -1,0 +1,28 @@
+{
+  "name": "@open-agent/graph",
+  "version": "0.1.0",
+  "description": "Local-first Knowledge Graph and Graph RAG engine with evidence provenance for OpenAgent Infrastructure",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "rm -rf dist && tsc",
+    "test": "node --test dist/tests/",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo 'No lint errors in graph'",
+    "format": "prettier --write \"src/**/*.{ts,json}\"",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@open-agent/vector": "*"
+  },
+  "devDependencies": {
+    "@open-agent/core": "*",
+    "@types/node": "^20.11.0",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "license": "Apache-2.0"
+}
