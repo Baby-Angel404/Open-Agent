@@ -1,4 +1,5 @@
 import * as crypto from "node:crypto";
+import { performance } from "node:perf_hooks";
 import { AgentAction, ActionResult } from "../types/action.js";
 import { Session, SessionStatus } from "../types/agent.js";
 import { Policy, PolicyDecision } from "../types/policy.js";
@@ -9,7 +10,11 @@ import { validateAction } from "../policy/validator.js";
 import { CapabilityRegistry, UnknownCapabilityError } from "../capability/registry.js";
 import { ExecutorDispatcher, SecurityViolationError } from "../executor/dispatcher.js";
 import { LocalAuditLogger } from "../audit/logger.js";
+import { AppendOnlyAuditStore } from "../audit/store.js";
 import { SessionManager } from "../session/manager.js";
+import { SecurityClassifier } from "../security/classifier.js";
+import { LocalMetricsCollector } from "../observability/metrics.js";
+import { AuditEvent, AuditEventType } from "../types/audit.js";
 
 export type StepOutcome =
   "EXECUTED" | "WAITING_FOR_APPROVAL" | "DENIED" | "LIMITED" | "COMPLETED" | "FAILED" | "STOPPED";
@@ -28,9 +33,10 @@ export interface AgentRuntimeOptions {
   policy: Policy;
   capabilityRegistry?: CapabilityRegistry;
   dispatcher?: ExecutorDispatcher;
-  auditLogger?: LocalAuditLogger;
+  auditLogger?: LocalAuditLogger | AppendOnlyAuditStore;
   sessionManager?: SessionManager;
   llmProvider: LLMProvider;
+  metrics?: LocalMetricsCollector;
 }
 
 export class AgentRuntime {
@@ -38,18 +44,31 @@ export class AgentRuntime {
   private policy: Policy;
   private capabilityRegistry: CapabilityRegistry;
   private dispatcher: ExecutorDispatcher;
-  private auditLogger: LocalAuditLogger;
+  private auditStore: AppendOnlyAuditStore;
+  private auditLoggerWrapper: LocalAuditLogger;
   private sessionManager: SessionManager;
   private llmProvider: LLMProvider;
+  private metrics: LocalMetricsCollector;
 
   constructor(options: AgentRuntimeOptions) {
     this.policyEngine = options.policyEngine;
     this.policy = options.policy;
     this.capabilityRegistry = options.capabilityRegistry || new CapabilityRegistry();
     this.dispatcher = options.dispatcher || new ExecutorDispatcher();
-    this.auditLogger = options.auditLogger || new LocalAuditLogger();
     this.sessionManager = options.sessionManager || new SessionManager();
     this.llmProvider = options.llmProvider;
+    this.metrics = options.metrics || new LocalMetricsCollector();
+
+    if (options.auditLogger instanceof AppendOnlyAuditStore) {
+      this.auditStore = options.auditLogger;
+      this.auditLoggerWrapper = new LocalAuditLogger();
+    } else if (options.auditLogger instanceof LocalAuditLogger) {
+      this.auditLoggerWrapper = options.auditLogger;
+      this.auditStore = options.auditLogger.getStore();
+    } else {
+      this.auditLoggerWrapper = new LocalAuditLogger();
+      this.auditStore = this.auditLoggerWrapper.getStore();
+    }
   }
 
   getPolicy(): Policy {
@@ -60,18 +79,89 @@ export class AgentRuntime {
     this.policy = policy;
   }
 
+  getMetrics(): LocalMetricsCollector {
+    return this.metrics;
+  }
+
+  getAuditStore(): AppendOnlyAuditStore {
+    return this.auditStore;
+  }
+
+  getAuditLogger(): LocalAuditLogger {
+    return this.auditLoggerWrapper;
+  }
+
+  private emitAudit(
+    sessionId: string,
+    agentId: string,
+    eventType: AuditEventType,
+    details: Partial<AuditEvent>,
+    isSensitiveAction = false
+  ): void {
+    const secMeta = SecurityClassifier.classify({
+      eventType,
+      actionType: details.action,
+      decision: details.policy_decision,
+      error: details.error,
+      isSensitiveAction,
+    });
+
+    if (secMeta.severity !== "INFO") {
+      this.metrics.recordSecurityViolation(
+        secMeta.severity,
+        secMeta.category || "VIOLATION",
+        secMeta.alert
+      );
+    }
+
+    // Determine backwards-compatible stage
+    let stage: any = eventType;
+    if (eventType === "ACTION_BLOCKED") stage = "ACTION_DENIED";
+    else if (eventType === "USER_DENIED") stage = "APPROVAL_REJECTED";
+    else if (eventType === "USER_APPROVED") stage = "APPROVAL_GRANTED";
+    else if (eventType === "USER_APPROVAL_REQUESTED") stage = "APPROVAL_REQUESTED";
+
+    const event: AuditEvent = {
+      event_id: `evt_${crypto.randomUUID()}`,
+      session_id: sessionId,
+      agent_id: agentId,
+      timestamp: new Date().toISOString(),
+      event_type: eventType,
+      stage, // Backwards compatibility alias
+      action: details.action,
+      action_id: details.action_id,
+      policy_decision: details.policy_decision,
+      reason: details.reason,
+      target: details.target,
+      target_metadata: details.target ? { resource: details.target } : undefined,
+      result: details.result,
+      error: details.error,
+      security_metadata: secMeta,
+      proposed_action: details.proposed_action,
+      execution_result: details.execution_result,
+      metadata: details.metadata,
+    };
+
+    this.auditStore.append(event);
+  }
+
   startSession(task: string, agentId = "agent_local"): Session {
     const session = this.sessionManager.createSession(task, agentId);
     this.sessionManager.updateStatus(session.id, "RUNNING");
+    this.metrics.recordSessionEvent("created");
 
-    this.auditLogger.append({
-      event_id: `evt_${crypto.randomUUID()}`,
-      session_id: session.id,
-      timestamp: new Date().toISOString(),
-      stage: "ACTION_PROPOSED",
+    // Emit SESSION_CREATED
+    this.emitAudit(session.id, agentId, "SESSION_CREATED", {
       action: "session_start",
       result: "success",
       metadata: { task, agentId },
+    });
+
+    // Emit TASK_RECEIVED
+    this.emitAudit(session.id, agentId, "TASK_RECEIVED", {
+      action: "receive_task",
+      result: "success",
+      metadata: { task },
     });
 
     return session;
@@ -93,12 +183,9 @@ export class AgentRuntime {
 
     this.sessionManager.setPendingAction(sessionId, undefined);
     this.sessionManager.updateStatus(sessionId, "STOPPED");
+    this.metrics.recordSessionEvent("stopped");
 
-    this.auditLogger.append({
-      event_id: `evt_${crypto.randomUUID()}`,
-      session_id: sessionId,
-      timestamp: new Date().toISOString(),
-      stage: "SESSION_STOPPED",
+    this.emitAudit(sessionId, session.agentId, "SESSION_STOPPED", {
       action: "emergency_stop",
       reason,
       result: "blocked",
@@ -134,12 +221,10 @@ export class AgentRuntime {
     }
 
     if (response === "DENY") {
-      this.auditLogger.append({
-        event_id: `evt_${crypto.randomUUID()}`,
-        session_id: sessionId,
-        timestamp: new Date().toISOString(),
-        stage: "APPROVAL_REJECTED",
+      this.metrics.recordActionEvent("denied");
+      this.emitAudit(sessionId, session.agentId, "USER_DENIED", {
         action: action.type,
+        action_id: action.id,
         target: action.target,
         result: "blocked",
         reason: "User denied explicit approval request",
@@ -154,13 +239,10 @@ export class AgentRuntime {
       };
     }
 
-    // Response is APPROVE: Execute the action
-    this.auditLogger.append({
-      event_id: `evt_${crypto.randomUUID()}`,
-      session_id: sessionId,
-      timestamp: new Date().toISOString(),
-      stage: "APPROVAL_GRANTED",
+    // Response is APPROVE: Execute the action with bound token and TTL
+    this.emitAudit(sessionId, session.agentId, "USER_APPROVED", {
       action: action.type,
+      action_id: action.id,
       target: action.target,
       result: "success",
     });
@@ -172,15 +254,18 @@ export class AgentRuntime {
       timestamp: approvedAt,
     };
 
-    const approvedAction: ApprovedAction = {
+    const approvedAction = this.dispatcher.createApprovedAction(
       action,
-      decision: approvedDecision,
-      approvalToken: this.dispatcher.generateApprovalToken(action.id || "", "ALLOW", approvedAt),
-      approvedAt,
-    };
+      approvedDecision as { decision: "ALLOW"; reason?: string; timestamp?: string },
+      approvedAt
+    );
+
+    this.metrics.recordActionEvent("allowed");
 
     try {
       const result = await this.dispatcher.dispatch(approvedAction);
+      this.metrics.recordActionEvent("executed");
+
       this.sessionManager.addHistory(sessionId, {
         action,
         decision: approvedDecision,
@@ -188,12 +273,9 @@ export class AgentRuntime {
         timestamp: approvedAt,
       });
 
-      this.auditLogger.append({
-        event_id: `evt_${crypto.randomUUID()}`,
-        session_id: sessionId,
-        timestamp: new Date().toISOString(),
-        stage: "ACTION_EXECUTED",
+      this.emitAudit(sessionId, session.agentId, "ACTION_EXECUTED", {
         action: action.type,
+        action_id: action.id,
         target: action.target,
         result: "success",
         execution_result: result as unknown as Record<string, unknown>,
@@ -203,7 +285,17 @@ export class AgentRuntime {
       return { outcome: "EXECUTED", sessionId, action, decision: approvedDecision, result };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
+      this.metrics.recordActionEvent("failed");
       this.sessionManager.updateStatus(sessionId, "FAILED");
+
+      this.emitAudit(sessionId, session.agentId, "ACTION_FAILED", {
+        action: action.type,
+        action_id: action.id,
+        target: action.target,
+        result: "failure",
+        error: message,
+      });
+
       return { outcome: "FAILED", sessionId, action, error: message };
     }
   }
@@ -242,6 +334,13 @@ export class AgentRuntime {
 
     if (!proposed) {
       this.sessionManager.updateStatus(sessionId, "COMPLETED");
+      this.metrics.recordSessionEvent("completed");
+
+      this.emitAudit(sessionId, session.agentId, "SESSION_COMPLETED", {
+        action: "session_finish",
+        result: "success",
+      });
+
       return { outcome: "COMPLETED", sessionId };
     }
 
@@ -259,16 +358,20 @@ export class AgentRuntime {
 
     // Strict validation
     validateAction(action, true);
+    this.metrics.recordActionEvent("proposed");
 
-    this.auditLogger.append({
-      event_id: `evt_${crypto.randomUUID()}`,
-      session_id: sessionId,
-      timestamp: new Date().toISOString(),
-      stage: "ACTION_PROPOSED",
-      action: action.type,
-      target: action.target,
-      proposed_action: action as unknown as Record<string, unknown>,
-    });
+    this.emitAudit(
+      sessionId,
+      session.agentId,
+      "ACTION_PROPOSED",
+      {
+        action: action.type,
+        action_id: action.id,
+        target: action.target,
+        proposed_action: action as unknown as Record<string, unknown>,
+      },
+      action.isSensitive
+    );
 
     // 2. Validate capability
     try {
@@ -276,17 +379,22 @@ export class AgentRuntime {
     } catch (capErr: unknown) {
       const msg = capErr instanceof UnknownCapabilityError ? capErr.message : String(capErr);
       this.sessionManager.updateStatus(sessionId, "FAILED");
+      this.metrics.recordSessionEvent("failed");
+      this.metrics.recordActionEvent("failed");
 
-      this.auditLogger.append({
-        event_id: `evt_${crypto.randomUUID()}`,
-        session_id: sessionId,
-        timestamp: new Date().toISOString(),
-        stage: "ACTION_FAILED",
-        action: action.type,
-        target: action.target,
-        error: msg,
-        result: "failure",
-      });
+      this.emitAudit(
+        sessionId,
+        session.agentId,
+        "ACTION_FAILED",
+        {
+          action: action.type,
+          action_id: action.id,
+          target: action.target,
+          error: msg,
+          result: "failure",
+        },
+        action.isSensitive
+      );
 
       return { outcome: "FAILED", sessionId, action, error: msg };
     }
@@ -297,33 +405,45 @@ export class AgentRuntime {
       return { outcome: "STOPPED", sessionId, error: "Execution aborted: session stopped" };
     }
 
-    // 4. Policy Engine Evaluation
+    // 4. Policy Engine Evaluation with latency instrumentation
+    const evalStart = performance.now();
     const decision = this.policyEngine.evaluate(action, this.policy);
+    const evalDuration = performance.now() - evalStart;
+    this.metrics.recordPolicyEvaluation(evalDuration);
 
-    this.auditLogger.append({
-      event_id: `evt_${crypto.randomUUID()}`,
-      session_id: sessionId,
-      timestamp: new Date().toISOString(),
-      stage: "POLICY_EVALUATED",
-      action: action.type,
-      target: action.target,
-      policy_decision: decision.decision,
-      reason: decision.reason,
-    });
+    this.emitAudit(
+      sessionId,
+      session.agentId,
+      "POLICY_EVALUATED",
+      {
+        action: action.type,
+        action_id: action.id,
+        target: action.target,
+        policy_decision: decision.decision,
+        reason: decision.reason,
+      },
+      action.isSensitive
+    );
 
     // 5. Enforce Policy Decision
     if (decision.decision === "DENY") {
-      this.auditLogger.append({
-        event_id: `evt_${crypto.randomUUID()}`,
-        session_id: sessionId,
-        timestamp: new Date().toISOString(),
-        stage: "ACTION_DENIED",
-        action: action.type,
-        target: action.target,
-        policy_decision: "DENY",
-        reason: decision.reason,
-        result: "blocked",
-      });
+      this.metrics.recordActionEvent("denied");
+      this.metrics.recordActionEvent("blocked");
+
+      this.emitAudit(
+        sessionId,
+        session.agentId,
+        "ACTION_BLOCKED",
+        {
+          action: action.type,
+          action_id: action.id,
+          target: action.target,
+          policy_decision: "DENY",
+          reason: decision.reason,
+          result: "blocked",
+        },
+        action.isSensitive
+      );
 
       const blockedResult: ActionResult = {
         actionId: action.id,
@@ -340,21 +460,28 @@ export class AgentRuntime {
       });
 
       this.sessionManager.updateStatus(sessionId, "FAILED");
+      this.metrics.recordSessionEvent("failed");
       return { outcome: "DENIED", sessionId, action, decision, result: blockedResult };
     }
 
     if (decision.decision === "LIMITED") {
-      this.auditLogger.append({
-        event_id: `evt_${crypto.randomUUID()}`,
-        session_id: sessionId,
-        timestamp: new Date().toISOString(),
-        stage: "ACTION_DENIED",
-        action: action.type,
-        target: action.target,
-        policy_decision: "LIMITED",
-        reason: decision.reason,
-        result: "blocked",
-      });
+      this.metrics.recordActionEvent("denied");
+      this.metrics.recordActionEvent("blocked");
+
+      this.emitAudit(
+        sessionId,
+        session.agentId,
+        "ACTION_BLOCKED",
+        {
+          action: action.type,
+          action_id: action.id,
+          target: action.target,
+          policy_decision: "LIMITED",
+          reason: decision.reason,
+          result: "blocked",
+        },
+        action.isSensitive
+      );
 
       return { outcome: "LIMITED", sessionId, action, decision };
     }
@@ -363,33 +490,39 @@ export class AgentRuntime {
       this.sessionManager.setPendingAction(sessionId, action);
       this.sessionManager.updateStatus(sessionId, "WAITING_FOR_APPROVAL");
 
-      this.auditLogger.append({
-        event_id: `evt_${crypto.randomUUID()}`,
-        session_id: sessionId,
-        timestamp: new Date().toISOString(),
-        stage: "APPROVAL_REQUESTED",
-        action: action.type,
-        target: action.target,
-        policy_decision: "ASK_USER",
-        reason: decision.reason,
-      });
+      this.emitAudit(
+        sessionId,
+        session.agentId,
+        "USER_APPROVAL_REQUESTED",
+        {
+          action: action.type,
+          action_id: action.id,
+          target: action.target,
+          policy_decision: "ASK_USER",
+          reason: decision.reason,
+        },
+        action.isSensitive
+      );
 
       return { outcome: "WAITING_FOR_APPROVAL", sessionId, action, decision };
     }
 
-    // 6. Action ALLOWED: Execute via Dispatcher
+    // 6. Action ALLOWED: Bind action payload and TTL, then dispatch
     const approvedAt = new Date().toISOString();
-    const approvedAction: ApprovedAction = {
+    const approvedAction = this.dispatcher.createApprovedAction(
       action,
-      decision,
-      approvalToken: this.dispatcher.generateApprovalToken(action.id || "", "ALLOW", approvedAt),
-      approvedAt,
-    };
+      decision as { decision: "ALLOW"; reason?: string; timestamp?: string },
+      approvedAt
+    );
 
-    this.auditLogger.append({
+    this.metrics.recordActionEvent("allowed");
+
+    this.auditStore.append({
       event_id: `evt_${crypto.randomUUID()}`,
       session_id: sessionId,
+      agent_id: session.agentId,
       timestamp: approvedAt,
+      event_type: "ACTION_PROPOSED",
       stage: "ACTION_ALLOWED",
       action: action.type,
       target: action.target,
@@ -398,6 +531,7 @@ export class AgentRuntime {
 
     try {
       const result = await this.dispatcher.dispatch(approvedAction);
+      this.metrics.recordActionEvent("executed");
 
       this.sessionManager.addHistory(sessionId, {
         action,
@@ -406,32 +540,40 @@ export class AgentRuntime {
         timestamp: approvedAt,
       });
 
-      this.auditLogger.append({
-        event_id: `evt_${crypto.randomUUID()}`,
-        session_id: sessionId,
-        timestamp: new Date().toISOString(),
-        stage: "ACTION_EXECUTED",
-        action: action.type,
-        target: action.target,
-        result: "success",
-        execution_result: result as unknown as Record<string, unknown>,
-      });
+      this.emitAudit(
+        sessionId,
+        session.agentId,
+        "ACTION_EXECUTED",
+        {
+          action: action.type,
+          action_id: action.id,
+          target: action.target,
+          result: "success",
+          execution_result: result as unknown as Record<string, unknown>,
+        },
+        action.isSensitive
+      );
 
       return { outcome: "EXECUTED", sessionId, action, decision, result };
     } catch (execErr: unknown) {
       const message = execErr instanceof Error ? execErr.message : String(execErr);
       this.sessionManager.updateStatus(sessionId, "FAILED");
+      this.metrics.recordSessionEvent("failed");
+      this.metrics.recordActionEvent("failed");
 
-      this.auditLogger.append({
-        event_id: `evt_${crypto.randomUUID()}`,
-        session_id: sessionId,
-        timestamp: new Date().toISOString(),
-        stage: "ACTION_FAILED",
-        action: action.type,
-        target: action.target,
-        error: message,
-        result: "failure",
-      });
+      this.emitAudit(
+        sessionId,
+        session.agentId,
+        "ACTION_FAILED",
+        {
+          action: action.type,
+          action_id: action.id,
+          target: action.target,
+          error: message,
+          result: "failure",
+        },
+        action.isSensitive
+      );
 
       return { outcome: "FAILED", sessionId, action, decision, error: message };
     }

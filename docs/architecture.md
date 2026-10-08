@@ -76,5 +76,13 @@ OpenAgent strictly enforces four trust boundaries:
    If the policy requires confirmation, the runtime suspends the session (`WAITING_FOR_APPROVAL`). Execution resumes only upon receiving explicit user input (`APPROVE`, `DENY`, or `CANCEL_SESSION`).
 5. **Emergency Stop (Kill Switch)**:
    The user or operator can call `emergencyStop()` at any point. Active and pending actions are aborted immediately, session transitions to `STOPPED`, and an immutable audit event is persisted.
-6. **Local API**:
-   A versioned HTTP API (`/api/v1/agents`, `/api/v1/sessions`, `/api/v1/policies`, `/api/v1/audit`) facilitates communication between the CLI, runtime, and upcoming desktop or browser interfaces.
+6. **Local API & Security Dashboard**:
+   A versioned HTTP API (`/api/v1/agents`, `/api/v1/sessions`, `/api/v1/policies`, `/api/v1/audit`, `/api/v1/metrics`, `/api/v1/sessions/:id/timeline`) bound exclusively to `127.0.0.1` serves both the CLI and local web dashboard.
+7. **Append-Only Store & Cryptographic Hash Chaining**:
+   Sequential SHA-256 hash chaining over canonical JSON representations of sanitized events. Supports free-text query, filtering, independent integrity verification, and standalone export bundles.
+8. **Action Binding & Expiration**:
+   Cryptographic tokens bind the exact action payload hash (`actionDigest`), decision, approval timestamp, and TTL (`expiresAt`, default 10 seconds). The dispatcher verifies unexpired tokens and single-use consumption to prevent payload tampering and replay attacks.
+9. **Deterministic Session Replay**:
+   The `SessionReplayEngine` reconstructs chronological step timelines, policy decisions, security alerts, and sanitized browser traces in `REPLAY_FOR_ANALYSIS` mode with zero side effects.
+10. **Local Observability**:
+    Real-time in-memory tracking of session states, action throughput, evaluation latencies (p50, p95, p99), and security violation classifications with zero cloud telemetry.

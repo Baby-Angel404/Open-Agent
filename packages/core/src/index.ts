@@ -9,6 +9,7 @@ export * from "./types/llm.js";
 
 // Security and validation
 export * from "./security/redactor.js";
+export * from "./security/classifier.js";
 export * from "./policy/validator.js";
 export * from "./policy/engine.js";
 
@@ -23,10 +24,14 @@ export * from "./executor/dispatcher.js";
 export * from "./llm/scripted.provider.js";
 export * from "./llm/openai.provider.js";
 
-// Session, audit, and runtime
+// Session, audit, replay, observability, and runtime
+export * from "./audit/store.js";
 export * from "./audit/logger.js";
+export * from "./replay/engine.js";
+export * from "./observability/metrics.js";
 export * from "./session/manager.js";
 export * from "./runtime/runtime.js";
 
-// Local API
+// Local API and UI
 export * from "./api/server.js";
+export * from "./api/ui.js";

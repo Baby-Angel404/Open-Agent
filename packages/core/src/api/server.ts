@@ -1,35 +1,89 @@
 import * as http from "node:http";
 import { AgentRuntime } from "../runtime/runtime.js";
 import { LocalAuditLogger } from "../audit/logger.js";
+import { AppendOnlyAuditStore } from "../audit/store.js";
 import { AgentAction } from "../types/action.js";
 import { PolicyEngine } from "../policy/engine.js";
+import { SessionReplayEngine } from "../replay/engine.js";
+import { renderDashboardHtml } from "./ui.js";
+import { AuditQueryFilter } from "../types/audit.js";
 
 export interface APIServerOptions {
   runtime: AgentRuntime;
-  auditLogger?: LocalAuditLogger;
+  auditLogger?: LocalAuditLogger | AppendOnlyAuditStore;
   port?: number;
+  host?: string;
+  enableDashboard?: boolean;
 }
 
 export class LocalAPIServer {
   private server?: http.Server;
   private runtime: AgentRuntime;
-  private auditLogger?: LocalAuditLogger;
+  private auditStore: AppendOnlyAuditStore;
   private port: number;
+  private host: string;
+  private enableDashboard: boolean;
+  private replayEngine: SessionReplayEngine;
+  private rateLimitWindowMs = 10000;
+  private maxRequestsPerWindow = 200;
+  private clientRequestCounts: Map<string, { count: number; resetAt: number }> = new Map();
 
   constructor(options: APIServerOptions) {
     this.runtime = options.runtime;
-    this.auditLogger = options.auditLogger;
     this.port = options.port || 4242;
+    this.host = options.host || "127.0.0.1"; // Security hardening: bind exclusively to local interface
+    this.enableDashboard = options.enableDashboard !== false;
+    this.replayEngine = new SessionReplayEngine();
+
+    if (options.auditLogger instanceof AppendOnlyAuditStore) {
+      this.auditStore = options.auditLogger;
+    } else if (options.auditLogger instanceof LocalAuditLogger) {
+      this.auditStore = options.auditLogger.getStore();
+    } else {
+      this.auditStore = options.runtime.getAuditStore();
+    }
+  }
+
+  private isAllowedOrigin(origin?: string): boolean {
+    if (!origin) return true; // Direct tools, curl, CLI
+    try {
+      const u = new URL(origin);
+      return u.hostname === "localhost" || u.hostname === "127.0.0.1" || u.hostname === "::1";
+    } catch {
+      return false;
+    }
+  }
+
+  private checkRateLimit(ip: string): boolean {
+    const now = Date.now();
+    const client = this.clientRequestCounts.get(ip);
+    if (!client || now > client.resetAt) {
+      this.clientRequestCounts.set(ip, { count: 1, resetAt: now + this.rateLimitWindowMs });
+      return true;
+    }
+    client.count++;
+    return client.count <= this.maxRequestsPerWindow;
   }
 
   private sendJSON(res: http.ServerResponse, statusCode: number, data: unknown): void {
     res.writeHead(statusCode, {
       "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Origin": "http://127.0.0.1",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
     });
     res.end(JSON.stringify(data));
+  }
+
+  private sendHTML(res: http.ServerResponse, statusCode: number, html: string): void {
+    res.writeHead(statusCode, {
+      "Content-Type": "text/html; charset=utf-8",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+    });
+    res.end(html);
   }
 
   private parseBody(req: http.IncomingMessage): Promise<Record<string, unknown>> {
@@ -37,12 +91,16 @@ export class LocalAPIServer {
       let body = "";
       req.on("data", (chunk) => {
         body += chunk;
+        if (body.length > 2 * 1024 * 1024) {
+          // 2MB limit
+          req.destroy(new Error("Request payload too large"));
+        }
       });
       req.on("end", () => {
         if (!body) return resolve({});
         try {
           resolve(JSON.parse(body) as Record<string, unknown>);
-        } catch (err) {
+        } catch {
           reject(new Error("Invalid JSON body"));
         }
       });
@@ -51,9 +109,25 @@ export class LocalAPIServer {
   }
 
   async handleRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+    const origin = req.headers.origin;
+    if (origin && !this.isAllowedOrigin(origin)) {
+      res.writeHead(403, { "Content-Type": "text/plain" });
+      res.end("Forbidden: External origin rejected by local security boundary");
+      return;
+    }
+
+    const clientIp = req.socket.remoteAddress || "127.0.0.1";
+    if (!this.checkRateLimit(clientIp)) {
+      res.writeHead(429, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({ success: false, error: "Rate limit exceeded on local API endpoint" })
+      );
+      return;
+    }
+
     if (req.method === "OPTIONS") {
       res.writeHead(204, {
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": origin || "http://127.0.0.1",
         "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type",
       });
@@ -61,12 +135,39 @@ export class LocalAPIServer {
       return;
     }
 
-    const parsedUrl = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
+    const parsedUrl = new URL(req.url || "/", `http://${req.headers.host || "127.0.0.1"}`);
     const pathname = parsedUrl.pathname;
     const method = req.method;
 
     try {
-      // 1. /api/v1/agents
+      // 0. Dashboard & Health
+      if ((pathname === "/" || pathname === "/dashboard") && method === "GET") {
+        if (!this.enableDashboard) {
+          return this.sendJSON(res, 404, { success: false, error: "Dashboard disabled" });
+        }
+        return this.sendHTML(res, 200, renderDashboardHtml());
+      }
+
+      if (pathname === "/health" && method === "GET") {
+        const metrics = this.runtime.getMetrics();
+        const health = metrics.getHealth();
+        return this.sendJSON(res, 200, {
+          status: health.status,
+          uptime: metrics.getSnapshot().uptimeSeconds,
+          reasons: health.reasons,
+          version: "0.1.0",
+        });
+      }
+
+      // 1. /api/v1/metrics
+      if (pathname === "/api/v1/metrics" && method === "GET") {
+        return this.sendJSON(res, 200, {
+          success: true,
+          data: this.runtime.getMetrics().getSnapshot(),
+        });
+      }
+
+      // 2. /api/v1/agents
       if (pathname === "/api/v1/agents" && method === "GET") {
         return this.sendJSON(res, 200, {
           success: true,
@@ -81,7 +182,7 @@ export class LocalAPIServer {
         });
       }
 
-      // 2. /api/v1/sessions
+      // 3. /api/v1/sessions
       if (pathname === "/api/v1/sessions" && method === "GET") {
         return this.sendJSON(res, 200, {
           success: true,
@@ -110,6 +211,15 @@ export class LocalAPIServer {
           return this.sendJSON(res, 404, { success: false, error: "Session not found" });
         }
         return this.sendJSON(res, 200, { success: true, data: session });
+      }
+
+      // /api/v1/sessions/:id/timeline (Deterministic Replay)
+      const timelineMatch = pathname.match(/^\/api\/v1\/sessions\/([^/]+)\/timeline$/);
+      if (timelineMatch && method === "GET") {
+        const sessionId = timelineMatch[1];
+        const entries = this.auditStore.getEntries();
+        const report = this.replayEngine.replaySession(sessionId, entries);
+        return this.sendJSON(res, 200, { success: true, data: report });
       }
 
       // /api/v1/sessions/:id/step
@@ -142,7 +252,7 @@ export class LocalAPIServer {
         return this.sendJSON(res, 200, { success: true, data: approvalRes });
       }
 
-      // 3. /api/v1/actions/evaluate
+      // 4. /api/v1/actions/evaluate
       if (pathname === "/api/v1/actions/evaluate" && method === "POST") {
         const body = await this.parseBody(req);
         const action = body.action as AgentAction;
@@ -151,7 +261,7 @@ export class LocalAPIServer {
         return this.sendJSON(res, 200, { success: true, data: decision });
       }
 
-      // 4. /api/v1/policies
+      // 5. /api/v1/policies
       if (pathname === "/api/v1/policies" && method === "GET") {
         return this.sendJSON(res, 200, {
           success: true,
@@ -159,9 +269,44 @@ export class LocalAPIServer {
         });
       }
 
-      // 5. /api/v1/audit
+      // 6. /api/v1/audit/verify
+      if (pathname === "/api/v1/audit/verify" && method === "POST") {
+        const verification = this.auditStore.verifyIntegrity();
+        return this.sendJSON(res, 200, {
+          success: true,
+          data: verification,
+        });
+      }
+
+      // 7. /api/v1/audit/export
+      if (pathname === "/api/v1/audit/export" && method === "GET") {
+        const sessionId = parsedUrl.searchParams.get("sessionId");
+        if (!sessionId) {
+          return this.sendJSON(res, 400, {
+            success: false,
+            error: "Missing required 'sessionId' query parameter",
+          });
+        }
+        const bundle = this.auditStore.exportSession(sessionId);
+        return this.sendJSON(res, 200, { success: true, data: bundle });
+      }
+
+      // 8. /api/v1/audit (with search and filters)
       if (pathname === "/api/v1/audit" && method === "GET") {
-        const entries = this.auditLogger ? this.auditLogger.getEntries() : [];
+        const sessionId = parsedUrl.searchParams.get("sessionId") || undefined;
+        const eventType = parsedUrl.searchParams.get("eventType") || undefined;
+        const textSearch = parsedUrl.searchParams.get("q") || undefined;
+        const limitStr = parsedUrl.searchParams.get("limit");
+        const limit = limitStr ? parseInt(limitStr, 10) : undefined;
+
+        const filter: AuditQueryFilter = {
+          sessionId,
+          eventType: eventType as any,
+          textSearch,
+          limit,
+        };
+
+        const entries = this.auditStore.query(filter);
         return this.sendJSON(res, 200, {
           success: true,
           data: entries,
@@ -180,7 +325,7 @@ export class LocalAPIServer {
       this.server = http.createServer((req, res) => {
         this.handleRequest(req, res);
       });
-      this.server.listen(port, () => {
+      this.server.listen(port, this.host, () => {
         const actualPort = (this.server?.address() as { port: number })?.port || port;
         resolve(actualPort);
       });

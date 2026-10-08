@@ -12,7 +12,11 @@ export class SecretRedactor {
   private static readonly DEFAULT_SENSITIVE_KEYS = [
     "password",
     "passwd",
+    "passphrase",
+    "pin",
+    "otp",
     "secret",
+    "secret_key",
     "token",
     "api_key",
     "apikey",
@@ -20,20 +24,26 @@ export class SecretRedactor {
     "refresh_token",
     "private_key",
     "authorization",
+    "proxy-authorization",
     "auth",
     "cookie",
     "cookies",
     "set-cookie",
     "credentials",
     "cvv",
+    "cvc",
     "ssn",
+    "card_number",
+    "credit_card",
   ];
 
   private static readonly DEFAULT_PATTERNS = [
     /bearer\s+[a-zA-Z0-9._~+/-]+=*/gi,
     /basic\s+[a-zA-Z0-9+/=]+/gi,
     /sk-[a-zA-Z0-9]{20,}/g,
+    /ghp_[a-zA-Z0-9]{20,}/g,
     /ey[A-Za-z0-9_-]{10,}\.ey[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+/g,
+    /([?&](?:api_key|token|access_token|secret|password|auth)=)[^&]+/gi,
   ];
 
   constructor(config?: RedactionConfig) {
@@ -46,7 +56,11 @@ export class SecretRedactor {
   redactString(text: string): string {
     let result = text;
     for (const pattern of this.patterns) {
-      result = result.replace(pattern, this.maskString);
+      if (pattern.source.includes("([?&]")) {
+        result = result.replace(pattern, `$1${this.maskString}`);
+      } else {
+        result = result.replace(pattern, this.maskString);
+      }
     }
     return result;
   }
@@ -65,9 +79,25 @@ export class SecretRedactor {
     }
 
     if (typeof input === "object") {
+      const obj = input as Record<string, unknown>;
+
+      // Check structured form metadata: if input is an element or field descriptor
+      const isSensitiveField =
+        obj.type === "password" ||
+        obj.fieldType === "password" ||
+        obj.inputType === "password" ||
+        obj.isSensitive === true;
+
       const sanitized: Record<string, unknown> = {};
-      for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
-        if (this.sensitiveKeys.has(key.toLowerCase())) {
+      for (const [key, value] of Object.entries(obj)) {
+        const lowerKey = key.toLowerCase();
+
+        if (this.sensitiveKeys.has(lowerKey)) {
+          sanitized[key] = this.maskString;
+        } else if (
+          isSensitiveField &&
+          (lowerKey === "value" || lowerKey === "text" || lowerKey === "input")
+        ) {
           sanitized[key] = this.maskString;
         } else {
           sanitized[key] = this.redactObject(value);

@@ -6,6 +6,8 @@ export interface ApprovedAction {
   decision: Readonly<PolicyDecision>;
   approvalToken: string;
   approvedAt: string;
+  actionDigest?: string;
+  expiresAt?: string;
 }
 
 export interface IExecutor {

@@ -71,6 +71,20 @@ export class SessionManager {
     return Array.from(this.sessions.values());
   }
 
+  getTotalCount(): number {
+    return this.sessions.size;
+  }
+
+  getActiveCount(): number {
+    let active = 0;
+    for (const s of this.sessions.values()) {
+      if (s.status === "RUNNING" || s.status === "WAITING_FOR_APPROVAL") {
+        active++;
+      }
+    }
+    return active;
+  }
+
   updateStatus(id: string, status: SessionStatus): boolean {
     const s = this.sessions.get(id);
     if (!s) return false;
@@ -103,5 +117,24 @@ export class SessionManager {
     s.updatedAt = new Date().toISOString();
     this.persist();
     return true;
+  }
+
+  /**
+   * Enforces strict session isolation by wiping all in-memory and persistent state for a session.
+   */
+  clearSession(id: string): boolean {
+    const s = this.sessions.get(id);
+    if (!s) return false;
+    // Wipe history, metadata, and pending action references
+    s.history = [];
+    s.metadata = {};
+    s.pendingAction = undefined;
+    const deleted = this.sessions.delete(id);
+    this.persist();
+    return deleted;
+  }
+
+  deleteSession(id: string): boolean {
+    return this.clearSession(id);
   }
 }

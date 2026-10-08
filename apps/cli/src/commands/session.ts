@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Session } from "@open-agent/core";
+import { Session, SessionReplayEngine, AppendOnlyAuditStore } from "@open-agent/core";
+import { getAuditLogPath } from "./audit.js";
 
 const SESSION_STORE_FILE = ".audit-logs/sessions.json";
 
@@ -61,5 +62,32 @@ export function handleSessionShow(sessionId: string): void {
     if (item.result) {
       console.log(`    Execution:       ${item.result.status}`);
     }
+  }
+}
+
+export function handleSessionReplay(
+  sessionId: string,
+  options: { verbose?: boolean; format?: string; filePath?: string }
+): void {
+  const auditPath = getAuditLogPath(options.filePath);
+  if (!fs.existsSync(auditPath)) {
+    console.error(`Error: Audit log file not found at ${auditPath}`);
+    return;
+  }
+
+  const store = new AppendOnlyAuditStore(auditPath);
+  const entries = store.getEntries();
+  const replayEngine = new SessionReplayEngine();
+  const report = replayEngine.replaySession(sessionId, entries);
+
+  if (report.totalEvents === 0) {
+    console.error(`No events found for session '${sessionId}' in audit trail`);
+    return;
+  }
+
+  if (options.format === "json") {
+    console.log(JSON.stringify(report, null, 2));
+  } else {
+    console.log(SessionReplayEngine.formatReportText(report, options.verbose));
   }
 }
