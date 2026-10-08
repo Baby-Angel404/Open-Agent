@@ -253,6 +253,10 @@ export class SubsystemLifecycle {
     return this.backupEngine;
   }
 
+  getApiPort(): number {
+    return this.actualApiPort;
+  }
+
   getSettings(): DesktopSettings {
     return this.settings;
   }

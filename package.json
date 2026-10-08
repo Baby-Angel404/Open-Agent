@@ -16,7 +16,8 @@
     "sbom": "node scripts/generate-sbom.mjs",
     "lint": "npm run lint --workspaces --if-present",
     "format": "prettier --write \"**/*.{ts,js,json,md,yml,yaml}\"",
-    "format:check": "prettier --check \"**/*.{ts,js,json,md,yml,yaml}\""
+    "format:check": "prettier --check \"**/*.{ts,js,json,md,yml,yaml}\"",
+    "benchmark": "node scripts/run-benchmarks.mjs"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
