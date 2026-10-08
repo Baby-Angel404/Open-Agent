@@ -18,6 +18,9 @@
     "test": "node --test dist/tests/",
     "lint": "echo 'No lint errors in core'"
   },
+  "dependencies": {
+    "@open-agent/vector": "*"
+  },
   "devDependencies": {
     "@types/node": "^20.11.0",
     "typescript": "^5.4.5"

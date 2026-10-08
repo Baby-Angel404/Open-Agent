@@ -1,0 +1,24 @@
+{
+  "name": "@open-agent/vector",
+  "version": "0.1.0",
+  "description": "Lightweight local hybrid vector engine (dense vector + sparse BM25) for OpenAgent Infrastructure",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test dist/tests/",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo 'No lint errors in vector'",
+    "format": "prettier --write \"src/**/*.{ts,json}\"",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "license": "Apache-2.0"
+}

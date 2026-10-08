@@ -15,7 +15,8 @@
     "lint": "echo 'No lint errors in cli'"
   },
   "dependencies": {
-    "@open-agent/core": "*"
+    "@open-agent/core": "*",
+    "@open-agent/vector": "*"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

@@ -10,10 +10,20 @@ import {
 } from "../commands/audit.js";
 import { handleSessionList, handleSessionShow, handleSessionReplay } from "../commands/session.js";
 import { handleMetrics } from "../commands/metrics.js";
+import {
+  handleCollectionCreate,
+  handleCollectionList,
+  handleCollectionDelete,
+  handleDocumentAdd,
+  handleDocumentIndex,
+  handleSearch,
+  handleIndexStatus,
+  handleVectorBenchmark,
+} from "../commands/vector.js";
 
 function printUsage(): void {
   console.log(`
-OpenAgent CLI - Deterministic Policy, Local Agent Runtime & Audit Subsystem (Phase 3)
+OpenAgent CLI - Autonomous Agent, Policy, Replay & Hybrid Vector Engine (Phase 4)
 
 Usage:
   openagent <command> <subcommand> [options]
@@ -50,6 +60,24 @@ Commands:
         --file <path>                         Audit log path
 
   metrics [--json] [--file <path>]            Display operational & security metrics
+
+  collection create <name> [options]          Create vector collection (--dim <n>, --metric <m>)
+  collection list                             List all vector collections
+  collection delete <name>                    Delete a vector collection
+
+  document add <collection> --file <path>     Ingest and chunk document into collection
+  document index <collection>                 Verify and synchronize index
+
+  search <collection> --query "..." [options] Perform hybrid/dense/sparse retrieval
+      Options:
+        --mode <hybrid|dense|sparse>          Search mode (default: hybrid)
+        --top-k <n>                           Number of results (default: 5)
+        --min-score <n>                       Minimum score threshold
+        --filter <json>                       Metadata filter JSON
+
+  index status <collection>                   Display vector and keyword index status
+
+  benchmark vector [options]                  Run local vector ingestion & retrieval benchmark
 
   --help, -h                                  Show this help menu
 `);
@@ -213,6 +241,118 @@ export async function runCLI(argv: string[]): Promise<void> {
           json: parsed.options["json"] === "true" || parsed.subcommand === "--json",
           filePath: parsed.options["file"],
         });
+        break;
+
+      case "collection":
+        if (parsed.subcommand === "create") {
+          const name = parsed.options["_pos"] || parsed.options["name"];
+          if (!name) {
+            console.error("Error: Collection name is required for collection create");
+            process.exit(1);
+          }
+          await handleCollectionCreate(name, {
+            dim: parsed.options["dim"] ? parseInt(parsed.options["dim"], 10) : undefined,
+            metric: parsed.options["metric"],
+            path: parsed.options["path"],
+          });
+        } else if (parsed.subcommand === "list") {
+          await handleCollectionList({ path: parsed.options["path"] });
+        } else if (parsed.subcommand === "delete") {
+          const name = parsed.options["_pos"] || parsed.options["name"];
+          if (!name) {
+            console.error("Error: Collection name is required for collection delete");
+            process.exit(1);
+          }
+          await handleCollectionDelete(name, { path: parsed.options["path"] });
+        } else {
+          printUsage();
+        }
+        break;
+
+      case "document":
+        if (parsed.subcommand === "add") {
+          const collection = parsed.options["_pos"] || parsed.options["collection"];
+          if (!collection) {
+            console.error("Error: Collection name is required for document add");
+            process.exit(1);
+          }
+          const file = parsed.options["file"];
+          if (!file) {
+            console.error("Error: --file is required for document add");
+            process.exit(1);
+          }
+          await handleDocumentAdd(collection, {
+            file,
+            id: parsed.options["id"],
+            chunkSize: parsed.options["chunk-size"]
+              ? parseInt(parsed.options["chunk-size"], 10)
+              : undefined,
+            chunkOverlap: parsed.options["chunk-overlap"]
+              ? parseInt(parsed.options["chunk-overlap"], 10)
+              : undefined,
+            path: parsed.options["path"],
+          });
+        } else if (parsed.subcommand === "index") {
+          const collection = parsed.options["_pos"] || parsed.options["collection"];
+          if (!collection) {
+            console.error("Error: Collection name is required for document index");
+            process.exit(1);
+          }
+          await handleDocumentIndex(collection, { path: parsed.options["path"] });
+        } else {
+          printUsage();
+        }
+        break;
+
+      case "search": {
+        const collection =
+          parsed.options["collection"] || parsed.subcommand || parsed.options["_pos"];
+        if (!collection) {
+          console.error("Error: Collection name is required for search");
+          process.exit(1);
+        }
+        const query = parsed.options["query"] || parsed.options["q"];
+        if (!query) {
+          console.error("Error: --query is required for search");
+          process.exit(1);
+        }
+        await handleSearch(collection, {
+          query,
+          mode: parsed.options["mode"] as any,
+          topK: parsed.options["top-k"] ? parseInt(parsed.options["top-k"], 10) : undefined,
+          minScore: parsed.options["min-score"]
+            ? parseFloat(parsed.options["min-score"])
+            : undefined,
+          filter: parsed.options["filter"],
+          path: parsed.options["path"],
+        });
+        break;
+      }
+
+      case "index":
+        if (parsed.subcommand === "status") {
+          const collection = parsed.options["_pos"] || parsed.options["collection"];
+          if (!collection) {
+            console.error("Error: Collection name is required for index status");
+            process.exit(1);
+          }
+          await handleIndexStatus(collection, { path: parsed.options["path"] });
+        } else {
+          printUsage();
+        }
+        break;
+
+      case "benchmark":
+        if (parsed.subcommand === "vector" || parsed.options["vector"] === "true") {
+          await handleVectorBenchmark({
+            dataset: parsed.options["dataset"],
+            queries: parsed.options["queries"],
+            count: parsed.options["count"] ? parseInt(parsed.options["count"], 10) : undefined,
+            path: parsed.options["path"],
+          });
+        } else {
+          printUsage();
+        }
         break;
 
       case "--help":

@@ -138,6 +138,7 @@ export function renderDashboardHtml(): string {
     <button class="tab-btn" onclick="switchTab('audit')">Audit Events Stream</button>
     <button class="tab-btn" onclick="switchTab('alerts')">Security Alerts</button>
     <button class="tab-btn" onclick="switchTab('replay')">Deterministic Replay</button>
+    <button class="tab-btn" onclick="switchTab('rag')">RAG Explorer</button>
   </div>
 
   <div id="tab-sessions" class="view-panel active card">
@@ -192,6 +193,44 @@ export function renderDashboardHtml(): string {
       <button class="action-btn" onclick="runReplay()">Reconstruct Timeline</button>
     </div>
     <div id="replayOutput" style="margin-top: 16px;"></div>
+  </div>
+
+  <div id="tab-rag" class="view-panel card">
+    <h3>Local Hybrid Retrieval & Collections</h3>
+    <div style="margin: 12px 0;">
+      <h4>Registered Collections</h4>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Dimension</th>
+            <th>Distance Metric</th>
+            <th>Records</th>
+            <th>Documents</th>
+            <th>Created</th>
+          </tr>
+        </thead>
+        <tbody id="ragCollectionsBody">
+          <tr><td colspan="6" style="text-align:center; color: var(--text-muted);">Loading collections...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 16px;">
+      <h4>Hybrid Retrieval Query Tester</h4>
+      <div style="display: flex; gap: 10px; margin: 12px 0; flex-wrap: wrap;">
+        <input type="text" id="ragSearchCol" placeholder="Collection name" style="padding: 8px; border-radius: 6px; background: #000; color: #fff; border: 1px solid var(--border); width: 180px;">
+        <input type="text" id="ragSearchQuery" placeholder="Search query text..." style="padding: 8px; border-radius: 6px; background: #000; color: #fff; border: 1px solid var(--border); flex: 1; min-width: 240px;">
+        <select id="ragSearchMode" style="padding: 8px; border-radius: 6px; background: #000; color: #fff; border: 1px solid var(--border);">
+          <option value="hybrid">Mode: Hybrid</option>
+          <option value="dense">Mode: Dense Only</option>
+          <option value="sparse">Mode: Sparse Only (BM25)</option>
+        </select>
+        <input type="number" id="ragSearchTopK" value="5" min="1" max="50" style="padding: 8px; border-radius: 6px; background: #000; color: #fff; border: 1px solid var(--border); width: 70px;">
+        <button class="action-btn" onclick="runRagSearch()">Search</button>
+      </div>
+      <div id="ragSearchResults" style="margin-top: 12px;"></div>
+    </div>
   </div>
 
   <script>
@@ -337,8 +376,98 @@ export function renderDashboardHtml(): string {
       }
     }
 
+    async function loadRagCollections() {
+      try {
+        const res = await fetch('/api/v1/collections').then(r => r.json());
+        const tbody = document.getElementById('ragCollectionsBody');
+        if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+          tbody.innerHTML = res.data.map(c => \`
+            <tr>
+              <td><code>\${c.name}</code></td>
+              <td>\${c.dimension}</td>
+              <td>\${c.distanceMetric}</td>
+              <td>\${c.recordCount}</td>
+              <td>\${c.documentCount}</td>
+              <td>\${new Date(c.createdAt).toLocaleTimeString()}</td>
+            </tr>
+          \`).join('');
+          const colInput = document.getElementById('ragSearchCol');
+          if (colInput && !colInput.value && res.data.length > 0) {
+            colInput.value = res.data[0].name;
+          }
+        } else {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--text-muted);">No collections found. Create one via CLI or API.</td></tr>';
+        }
+      } catch (err) {
+        console.error('Failed to load collections', err);
+      }
+    }
+
+    async function runRagSearch() {
+      const col = document.getElementById('ragSearchCol').value.trim();
+      const q = document.getElementById('ragSearchQuery').value.trim();
+      const mode = document.getElementById('ragSearchMode').value;
+      const topK = parseInt(document.getElementById('ragSearchTopK').value, 10) || 5;
+      const out = document.getElementById('ragSearchResults');
+      if (!col || !q) {
+        out.innerHTML = '<div class="alert-banner">Please specify collection and query text</div>';
+        return;
+      }
+      out.innerHTML = '<p style="color: var(--text-muted);">Executing ' + mode + ' search...</p>';
+      try {
+        const res = await fetch('/api/v1/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ collection: col, query: q, mode: mode, topK: topK })
+        }).then(r => r.json());
+
+        if (!res.success) {
+          out.innerHTML = \`<div class="alert-banner">Error: \${res.error?.message || JSON.stringify(res.error)}</div>\`;
+          return;
+        }
+
+        const hits = res.data?.results || [];
+        if (hits.length === 0) {
+          out.innerHTML = '<p style="color: var(--text-muted); margin-top: 8px;">No matching records found.</p>';
+          return;
+        }
+
+        out.innerHTML = \`
+          <div style="margin-bottom: 8px; font-size: 0.85rem; color: var(--text-muted);">Retrieved \${hits.length} items in \${res.data.timingMs.toFixed(2)}ms</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Score</th>
+                <th>Dense / Sparse</th>
+                <th>Record ID</th>
+                <th>Document / Chunk</th>
+                <th>Content Snippet</th>
+              </tr>
+            </thead>
+            <tbody>
+              \${hits.map(h => \`
+                <tr>
+                  <td><strong>\${h.score.toFixed(4)}</strong></td>
+                  <td>\${h.denseScore !== undefined ? h.denseScore.toFixed(3) : '-'} / \${h.sparseScore !== undefined ? h.sparseScore.toFixed(3) : '-'}</td>
+                  <td><code>\${h.id}</code></td>
+                  <td><code>\${h.documentId || '-'} / \${h.chunkId !== undefined ? h.chunkId : '-'}</code></td>
+                  <td style="max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="\${h.content}">\${h.content}</td>
+                </tr>
+              \`).join('')}
+            </tbody>
+          </table>
+        \`;
+      } catch (err) {
+        out.innerHTML = '<div class="alert-banner">Search request failed: ' + err.message + '</div>';
+      }
+    }
+
     loadData();
-    setInterval(loadData, 5000);
+    loadRagCollections();
+    setInterval(() => {
+      loadData();
+      loadRagCollections();
+    }, 5000);
   </script>
 </body>
 </html>`;

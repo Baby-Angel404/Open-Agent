@@ -7,10 +7,12 @@ import { PolicyEngine } from "../policy/engine.js";
 import { SessionReplayEngine } from "../replay/engine.js";
 import { renderDashboardHtml } from "./ui.js";
 import { AuditQueryFilter } from "../types/audit.js";
+import { VectorEngine, VectorAPIHandler } from "@open-agent/vector";
 
 export interface APIServerOptions {
   runtime: AgentRuntime;
   auditLogger?: LocalAuditLogger | AppendOnlyAuditStore;
+  vectorEngine?: VectorEngine;
   port?: number;
   host?: string;
   enableDashboard?: boolean;
@@ -20,6 +22,8 @@ export class LocalAPIServer {
   private server?: http.Server;
   private runtime: AgentRuntime;
   private auditStore: AppendOnlyAuditStore;
+  private vectorEngine: VectorEngine;
+  private vectorHandler: VectorAPIHandler;
   private port: number;
   private host: string;
   private enableDashboard: boolean;
@@ -34,6 +38,8 @@ export class LocalAPIServer {
     this.host = options.host || "127.0.0.1"; // Security hardening: bind exclusively to local interface
     this.enableDashboard = options.enableDashboard !== false;
     this.replayEngine = new SessionReplayEngine();
+    this.vectorEngine = options.vectorEngine || new VectorEngine();
+    this.vectorHandler = new VectorAPIHandler(this.vectorEngine);
 
     if (options.auditLogger instanceof AppendOnlyAuditStore) {
       this.auditStore = options.auditLogger;
@@ -140,6 +146,16 @@ export class LocalAPIServer {
     const method = req.method;
 
     try {
+      // Vector Engine routes
+      if (
+        pathname.startsWith("/api/v1/collections") ||
+        pathname.startsWith("/api/v1/documents") ||
+        pathname === "/api/v1/search" ||
+        pathname.startsWith("/api/v1/records")
+      ) {
+        return await this.vectorHandler.handleRequest(req, res);
+      }
+
       // 0. Dashboard & Health
       if ((pathname === "/" || pathname === "/dashboard") && method === "GET") {
         if (!this.enableDashboard) {
@@ -320,7 +336,8 @@ export class LocalAPIServer {
     }
   }
 
-  listen(port = this.port): Promise<number> {
+  async listen(port = this.port): Promise<number> {
+    await this.vectorEngine.init();
     return new Promise((resolve) => {
       this.server = http.createServer((req, res) => {
         this.handleRequest(req, res);

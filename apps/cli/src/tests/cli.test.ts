@@ -8,6 +8,16 @@ import { handleAgentStart, handleAgentStatus } from "../commands/agent.js";
 import { handleSessionList, loadSessions, handleSessionReplay } from "../commands/session.js";
 import { handleAuditList, handleAuditVerify, handleAuditExport } from "../commands/audit.js";
 import { handleMetrics } from "../commands/metrics.js";
+import {
+  handleCollectionCreate,
+  handleCollectionList,
+  handleCollectionDelete,
+  handleDocumentAdd,
+  handleDocumentIndex,
+  handleSearch,
+  handleIndexStatus,
+  handleVectorBenchmark,
+} from "../commands/vector.js";
 import { PolicyEngine, AgentAction } from "@open-agent/core";
 
 test("CLI policy loader reads default policy correctly", () => {
@@ -86,4 +96,60 @@ test("CLI audit verify, export, session replay, and metrics execute successfully
   assert.doesNotThrow(() => {
     handleMetrics({ json: true });
   });
+});
+
+test("CLI vector commands lifecycle (create, add, index, search, status, delete)", async () => {
+  const tmpDir = path.join(os.tmpdir(), `cli_vector_test_${Date.now()}`);
+  const colName = "test_cli_kb";
+
+  // 1. Create collection
+  await handleCollectionCreate(colName, { dim: 64, metric: "cosine", path: tmpDir });
+
+  // 2. List collections
+  await handleCollectionList({ path: tmpDir });
+
+  // 3. Document Add
+  const sampleDocPath = path.join(tmpDir, "sample.md");
+  fs.writeFileSync(
+    sampleDocPath,
+    "# AI Policy\n\nAll autonomous agents must obey deterministic policy checks before execution.\n\n## Auditing\nEvery action is recorded to an append-only cryptographic audit log."
+  );
+
+  await handleDocumentAdd(colName, { file: sampleDocPath, path: tmpDir });
+
+  // 4. Document Index
+  await handleDocumentIndex(colName, { path: tmpDir });
+
+  // 5. Index Status
+  await handleIndexStatus(colName, { path: tmpDir });
+
+  // 6. Search
+  await handleSearch(colName, {
+    query: "deterministic policy checks",
+    mode: "hybrid",
+    topK: 3,
+    path: tmpDir,
+  });
+  await handleSearch(colName, {
+    query: "cryptographic audit",
+    mode: "sparse",
+    topK: 3,
+    path: tmpDir,
+  });
+  await handleSearch(colName, {
+    query: "autonomous agents",
+    mode: "dense",
+    topK: 3,
+    path: tmpDir,
+  });
+
+  // 7. Delete collection
+  await handleCollectionDelete(colName, { path: tmpDir });
+
+  // Clean up
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+});
+
+test("CLI vector benchmark executes successfully", async () => {
+  await handleVectorBenchmark({ count: 100 });
 });

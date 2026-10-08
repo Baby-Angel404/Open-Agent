@@ -1,0 +1,13 @@
+[package]
+name = "openagent-vector-core"
+version = "0.1.0"
+edition = "2021"
+description = "High-performance vector distance metrics, BM25 indexing, and hybrid ranking engine"
+license = "Apache-2.0"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
