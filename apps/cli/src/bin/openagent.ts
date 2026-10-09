@@ -150,6 +150,7 @@ Commands:
   reputation show <id> [options]              Show peer reputation score & evidence history
 
   --help, -h                                  Show this help menu
+  --version, -v                               Show OpenAgent CLI version
 `);
 }
 
@@ -173,6 +174,14 @@ function parseArgs(args: string[]): {
   let idx = 0;
   if (idx < args.length && !args[idx].startsWith("-")) {
     result.command = args[idx++];
+  } else if (
+    idx < args.length &&
+    (args[idx] === "--help" ||
+      args[idx] === "-h" ||
+      args[idx] === "--version" ||
+      args[idx] === "-v")
+  ) {
+    result.command = args[idx++];
   }
   if (idx < args.length && !args[idx].startsWith("-")) {
     result.subcommand = args[idx++];
@@ -182,6 +191,16 @@ function parseArgs(args: string[]): {
     const arg = args[idx];
     if (arg.startsWith("--")) {
       const key = arg.slice(2);
+      const next = args[idx + 1];
+      if (next && !next.startsWith("-")) {
+        result.options[key] = next;
+        idx += 2;
+      } else {
+        result.options[key] = "true";
+        idx++;
+      }
+    } else if (arg.startsWith("-") && arg.length > 1) {
+      const key = arg.slice(1);
       const next = args[idx + 1];
       if (next && !next.startsWith("-")) {
         result.options[key] = next;
@@ -204,6 +223,17 @@ function parseArgs(args: string[]): {
 
 export async function runCLI(argv: string[]): Promise<void> {
   const parsed = parseArgs(argv.slice(2));
+
+  if (
+    parsed.command === "--version" ||
+    parsed.command === "-v" ||
+    parsed.command === "version" ||
+    parsed.options["version"] === "true" ||
+    parsed.options["v"] === "true"
+  ) {
+    console.log("OpenAgent CLI v0.2.0-alpha.1");
+    return;
+  }
 
   try {
     switch (parsed.command) {

@@ -4,6 +4,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { loadPolicy } from "../commands/policy.js";
+import { runCLI } from "../bin/openagent.js";
 import { handleAgentStart, handleAgentStatus } from "../commands/agent.js";
 import { handleSessionList, loadSessions, handleSessionReplay } from "../commands/session.js";
 import { handleAuditList, handleAuditVerify, handleAuditExport } from "../commands/audit.js";
@@ -292,4 +293,23 @@ test("CLI network, peer, capability, and reputation commands execute successfull
 
   // Clean up
   fs.rmSync(tmpDir, { recursive: true, force: true });
+});
+
+test("CLI entrypoint outputs version for --version, -v, and version flags", async () => {
+  const originalLog = console.log;
+  const captured: string[] = [];
+  console.log = (...args: unknown[]) => {
+    captured.push(args.map(String).join(" "));
+  };
+  try {
+    await runCLI(["node", "openagent.js", "--version"]);
+    await runCLI(["node", "openagent.js", "-v"]);
+    await runCLI(["node", "openagent.js", "version"]);
+    assert.strictEqual(captured.length, 3);
+    for (const out of captured) {
+      assert.ok(out.includes("OpenAgent CLI v0.2.0-alpha.1"));
+    }
+  } finally {
+    console.log = originalLog;
+  }
 });
