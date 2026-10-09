@@ -93,13 +93,13 @@ describe("Supply-Chain Policy & Verification Suite (Offline Negative Tests)", ()
 
   // 3. SBOM Metadata Injection & Version Policy
   describe("SBOM Metadata Policy", () => {
-    it("should inject standards-compliant VCS properties into CycloneDX and SPDX without touching release staging", () => {
+    it("should inject standards-compliant VCS properties into CycloneDX and SPDX without touching release staging", async () => {
       const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "openagent-sbom-test-"));
       try {
         const outCdx = path.join(tempDir, "test.cyclonedx.json");
         const outSpdx = path.join(tempDir, "test.spdx.json");
 
-        const result = generateCycloneDX({
+        const result = await generateCycloneDX({
           sourceCommit: "ff7a6a054ce1341288bc49ec1054030f3bdecf78",
           buildSourceCommit: "66af61898d858e1888bea79554b83d0bc7338212",
           tag: "v0.2.0-alpha.1",

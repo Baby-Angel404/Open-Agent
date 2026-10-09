@@ -2,22 +2,21 @@
 
 ## Finding Summary Matrix
 
-| ID | Component | Vulnerability Class | Severity | Status |
-| --- | --- | --- | --- | --- |
-| **OA-SEC-001** | `packages/vector/src/storage/fs.storage.ts` | Path Traversal via Collection ID (CWE-22 / CWE-73) | **CRITICAL** | **Remediated & Verified** |
-| **OA-SEC-002** | `packages/core/src/policy/engine.ts` | Subdomain Wildcard Pattern Matching Bypass (CWE-297) | **HIGH** | **Remediated & Verified** |
-| **OA-SEC-003** | `packages/core/src/api/server.ts` | Host Header Spoofing & DNS Rebinding Vulnerability (CWE-346) | **HIGH** | **Remediated & Verified** |
-| **OA-SEC-004** | `apps/desktop/src/main/backup.ts` | Path Prefix Sibling Traversal in Restore Engine (CWE-22) | **MEDIUM** | **Remediated & Verified** |
-| **OA-SEC-005** | `packages/network/src/protocol/authenticator.ts` | Unbounded Nonce Cache Memory Exhaustion / DoS (CWE-400) | **MEDIUM** | **Remediated & Verified** |
-| **OA-SEC-006** | `apps/desktop/src/main/vault.ts` | Predictable Static Default Master Secret in CredentialVault (CWE-798) | **MEDIUM** | **Remediated & Verified** |
-| **OA-SEC-007** | `packages/core/src/audit/store.ts` | Silent Suppression of Corrupted Log Records on Load (CWE-390) | **LOW** | **Remediated & Verified** |
-| **DEP-SEC-001** | `apps/desktop` (devDependency: `extract-zip@2.0.1`) | Symlink Path Traversal in Zip Extraction (GHSA-jmr9-qjv8-65gv) | **HIGH** | **Documented Residual Risk (Compensating Controls)** |
-| **DEP-SEC-002** | `apps/desktop` (devDependency: `electron@30.5.1`) | ASAR Integrity Bypass & Upstream Advisories (GHSA-vmqv-hx8q-j7mg) | **HIGH** | **Documented Residual Risk (Compensating Controls)** |
-| **DEP-SEC-003** | `apps/desktop` (devDependency: `sprintf-js@1.1.3`) | Unbounded Precision Specifier DoS (GHSA-hp3w-g68c-fv3c) | **MODERATE** | **Documented Residual Risk (Compensating Controls)** |
-| **DEP-SEC-004** | `apps/desktop` (devDependency: `roarr@2.15.4`) | Inherited DoS via sprintf-js (Transitive Toolchain Dependency) | **MODERATE** | **Documented Residual Risk (Compensating Controls)** |
-| **DEP-SEC-005** | `apps/desktop` (devDependency: `global-agent@3.0.0`) | Inherited DoS via roarr -> sprintf-js (Transitive Toolchain Dependency) | **MODERATE** | **Documented Residual Risk (Compensating Controls)** |
-| **DEP-SEC-006** | `apps/desktop` (devDependency: `@electron/get@2.0.3`) | Inherited DoS via global-agent (Transitive Toolchain Dependency) | **MODERATE** | **Documented Residual Risk (Compensating Controls)** |
-
+| ID              | Component                                             | Vulnerability Class                                                     | Severity     | Status                                               |
+| --------------- | ----------------------------------------------------- | ----------------------------------------------------------------------- | ------------ | ---------------------------------------------------- |
+| **OA-SEC-001**  | `packages/vector/src/storage/fs.storage.ts`           | Path Traversal via Collection ID (CWE-22 / CWE-73)                      | **CRITICAL** | **Remediated & Verified**                            |
+| **OA-SEC-002**  | `packages/core/src/policy/engine.ts`                  | Subdomain Wildcard Pattern Matching Bypass (CWE-297)                    | **HIGH**     | **Remediated & Verified**                            |
+| **OA-SEC-003**  | `packages/core/src/api/server.ts`                     | Host Header Spoofing & DNS Rebinding Vulnerability (CWE-346)            | **HIGH**     | **Remediated & Verified**                            |
+| **OA-SEC-004**  | `apps/desktop/src/main/backup.ts`                     | Path Prefix Sibling Traversal in Restore Engine (CWE-22)                | **MEDIUM**   | **Remediated & Verified**                            |
+| **OA-SEC-005**  | `packages/network/src/protocol/authenticator.ts`      | Unbounded Nonce Cache Memory Exhaustion / DoS (CWE-400)                 | **MEDIUM**   | **Remediated & Verified**                            |
+| **OA-SEC-006**  | `apps/desktop/src/main/vault.ts`                      | Predictable Static Default Master Secret in CredentialVault (CWE-798)   | **MEDIUM**   | **Remediated & Verified**                            |
+| **OA-SEC-007**  | `packages/core/src/audit/store.ts`                    | Silent Suppression of Corrupted Log Records on Load (CWE-390)           | **LOW**      | **Remediated & Verified**                            |
+| **DEP-SEC-001** | `apps/desktop` (devDependency: `extract-zip@2.0.1`)   | Symlink Path Traversal in Zip Extraction (GHSA-jmr9-qjv8-65gv)          | **HIGH**     | **Documented Residual Risk (Compensating Controls)** |
+| **DEP-SEC-002** | `apps/desktop` (devDependency: `electron@30.5.1`)     | ASAR Integrity Bypass & Upstream Advisories (GHSA-vmqv-hx8q-j7mg)       | **HIGH**     | **Documented Residual Risk (Compensating Controls)** |
+| **DEP-SEC-003** | `apps/desktop` (devDependency: `sprintf-js@1.1.3`)    | Unbounded Precision Specifier DoS (GHSA-hp3w-g68c-fv3c)                 | **MODERATE** | **Documented Residual Risk (Compensating Controls)** |
+| **DEP-SEC-004** | `apps/desktop` (devDependency: `roarr@2.15.4`)        | Inherited DoS via sprintf-js (Transitive Toolchain Dependency)          | **MODERATE** | **Documented Residual Risk (Compensating Controls)** |
+| **DEP-SEC-005** | `apps/desktop` (devDependency: `global-agent@3.0.0`)  | Inherited DoS via roarr -> sprintf-js (Transitive Toolchain Dependency) | **MODERATE** | **Documented Residual Risk (Compensating Controls)** |
+| **DEP-SEC-006** | `apps/desktop` (devDependency: `@electron/get@2.0.3`) | Inherited DoS via global-agent (Transitive Toolchain Dependency)        | **MODERATE** | **Documented Residual Risk (Compensating Controls)** |
 
 ---
 
@@ -242,4 +241,3 @@
 - **Disposition**: **Documented Residual Risk (Compensating Controls)**.
 - **Owner**: Desktop Infrastructure Team.
 - **Remediation Milestone**: v0.2.0.
-

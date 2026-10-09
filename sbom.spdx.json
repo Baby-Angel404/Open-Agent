@@ -3,19 +3,18 @@
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "open-agent-infrastructure",
-  "documentNamespace": "https://github.com/openagent/openagent/spdx/8bbbaad0-189c-4fba-a227-533e6e1fab49",
+  "documentNamespace": "https://github.com/openagent/openagent/spdx/aa0ed74b-ab9e-4604-ba46-7feaa6c8e812",
   "creationInfo": {
-    "creators": [
-      "Tool: OpenAgent SBOM Generator-1.0.0"
-    ],
-    "created": "2026-10-09T11:15:07.460Z"
+    "creators": ["Tool: OpenAgent SBOM Generator-1.0.0"],
+    "created": "2026-10-09T14:53:01.114Z"
   },
   "packages": [
     {
       "name": "open-agent-infrastructure",
       "SPDXID": "SPDXRef-RootPackage",
       "versionInfo": "0.2.0-alpha.1",
-      "downloadLocation": "NOASSERTION",
+      "downloadLocation": "git+https://github.com/Baby-Angel404/Open-Agent@e3b81ebe76797fe5e8a8bdbb1df16abdb5c8a700",
+      "sourceInfo": "Source Git commit: e3b81ebe76797fe5e8a8bdbb1df16abdb5c8a700 (Release tag: v0.2.0-alpha.2)",
       "filesAnalyzed": false,
       "licenseConcluded": "Apache-2.0",
       "licenseDeclared": "Apache-2.0"

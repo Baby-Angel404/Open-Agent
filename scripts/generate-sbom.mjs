@@ -5,10 +5,25 @@ import * as path from "node:path";
 import * as crypto from "node:crypto";
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import * as prettier from "prettier";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, "..");
+
+async function writeFormattedJson(targetPath, data) {
+  const raw = JSON.stringify(data, null, 2) + "\n";
+  try {
+    const config = (await prettier.resolveConfig(targetPath)) || {};
+    const formatted = await prettier.format(raw, {
+      ...config,
+      parser: "json",
+    });
+    fs.writeFileSync(targetPath, formatted, "utf-8");
+  } catch {
+    fs.writeFileSync(targetPath, raw, "utf-8");
+  }
+}
 
 function computeFileHash(filePath) {
   if (!fs.existsSync(filePath)) return null;
@@ -115,7 +130,7 @@ function getWorkspaces() {
   return workspaceDirs;
 }
 
-function generateCycloneDX(options = {}) {
+async function generateCycloneDX(options = {}) {
   const rootPkg = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"), "utf-8"));
   const workspaces = getWorkspaces();
   const serialNumber = `urn:uuid:${crypto.randomUUID()}`;
@@ -225,7 +240,7 @@ function generateCycloneDX(options = {}) {
   };
 
   const outputPath = options.outputCycloneDX || path.join(rootDir, "sbom.cyclonedx.json");
-  fs.writeFileSync(outputPath, JSON.stringify(bom, null, 2), "utf-8");
+  await writeFormattedJson(outputPath, bom);
   console.log(`Generated CycloneDX SBOM at: ${outputPath} (${components.length} components)`);
 
   // Also produce SPDX 2.3 format
@@ -274,7 +289,7 @@ function generateCycloneDX(options = {}) {
   };
 
   const spdxOutputPath = options.outputSPDX || path.join(rootDir, "sbom.spdx.json");
-  fs.writeFileSync(spdxOutputPath, JSON.stringify(spdx, null, 2), "utf-8");
+  await writeFormattedJson(spdxOutputPath, spdx);
   console.log(`Generated SPDX 2.3 SBOM at: ${spdxOutputPath}`);
 
   return { cycloneDX: bom, spdx, outputPath, spdxOutputPath };
@@ -284,5 +299,5 @@ export { validateCommitSha, resolveGitMetadata, generateCycloneDX, parseArgs };
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const options = parseArgs();
-  generateCycloneDX(options);
+  await generateCycloneDX(options);
 }

@@ -5,6 +5,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
+import * as prettier from "prettier";
 
 import { SubsystemLifecycle } from "../apps/desktop/dist/main/lifecycle.js";
 import { IPCDispatcher } from "../apps/desktop/dist/main/ipc/dispatcher.js";
@@ -329,9 +330,23 @@ npm run benchmark
 `;
 
     const docPath = path.join(rootDir, "docs", "validation", "benchmark-results.md");
-    await fs.promises.mkdir(path.dirname(docPath), { recursive: true });
-    await fs.promises.writeFile(docPath, markdownContent, "utf-8");
-    console.log(`\nBenchmark results successfully persisted to: ${docPath}`);
+    if (process.env.PERSIST_BENCHMARKS !== "false" && !process.argv.includes("--no-write")) {
+      await fs.promises.mkdir(path.dirname(docPath), { recursive: true });
+      let formattedMarkdown = markdownContent;
+      try {
+        const config = (await prettier.resolveConfig(docPath)) || {};
+        formattedMarkdown = await prettier.format(markdownContent, {
+          ...config,
+          parser: "markdown",
+        });
+      } catch {
+        // Fallback to unformatted markdown if prettier fails
+      }
+      await fs.promises.writeFile(docPath, formattedMarkdown, "utf-8");
+      console.log(`\nBenchmark results successfully persisted to: ${docPath}`);
+    } else {
+      console.log(`\nBenchmark results generated (persistence skipped via configuration).`);
+    }
 
     return results;
   } finally {

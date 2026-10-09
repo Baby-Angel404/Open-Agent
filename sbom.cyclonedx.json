@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:69f9a510-6f0f-4c93-844c-4ea4a8215b78",
+  "serialNumber": "urn:uuid:dabfd1e8-f3b9-4ca5-9924-a3253d958649",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-10-09T11:15:07.460Z",
+    "timestamp": "2026-10-09T14:53:01.114Z",
     "tools": {
       "components": [
         {
@@ -25,6 +25,20 @@
           "license": {
             "id": "Apache-2.0"
           }
+        }
+      ],
+      "properties": [
+        {
+          "name": "openagent:vcs:repository",
+          "value": "https://github.com/Baby-Angel404/Open-Agent"
+        },
+        {
+          "name": "openagent:vcs:commit",
+          "value": "e3b81ebe76797fe5e8a8bdbb1df16abdb5c8a700"
+        },
+        {
+          "name": "openagent:vcs:tag",
+          "value": "v0.2.0-alpha.2"
         }
       ]
     }
