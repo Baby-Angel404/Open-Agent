@@ -2,15 +2,18 @@
 
 ## Finding Summary Matrix
 
-| ID             | Component                                        | Vulnerability Class                                                   | Severity     | Status              |
-| -------------- | ------------------------------------------------ | --------------------------------------------------------------------- | ------------ | ------------------- |
-| **OA-SEC-001** | `packages/vector/src/storage/fs.storage.ts`      | Path Traversal via Collection ID (CWE-22 / CWE-73)                    | **CRITICAL** | Pending Remediation |
-| **OA-SEC-002** | `packages/core/src/policy/engine.ts`             | Subdomain Wildcard Pattern Matching Bypass (CWE-297)                  | **HIGH**     | Pending Remediation |
-| **OA-SEC-003** | `packages/core/src/api/server.ts`                | Host Header Spoofing & DNS Rebinding Vulnerability (CWE-346)          | **HIGH**     | Pending Remediation |
-| **OA-SEC-004** | `apps/desktop/src/main/backup.ts`                | Path Prefix Sibling Traversal in Restore Engine (CWE-22)              | **MEDIUM**   | Pending Remediation |
-| **OA-SEC-005** | `packages/network/src/protocol/authenticator.ts` | Unbounded Nonce Cache Memory Exhaustion / DoS (CWE-400)               | **MEDIUM**   | Pending Remediation |
-| **OA-SEC-006** | `apps/desktop/src/main/vault.ts`                 | Predictable Static Default Master Secret in CredentialVault (CWE-798) | **MEDIUM**   | Pending Remediation |
-| **OA-SEC-007** | `packages/core/src/audit/store.ts`               | Silent Suppression of Corrupted Log Records on Load (CWE-390)         | **LOW**      | Pending Remediation |
+| ID | Component | Vulnerability Class | Severity | Status |
+| --- | --- | --- | --- | --- |
+| **OA-SEC-001** | `packages/vector/src/storage/fs.storage.ts` | Path Traversal via Collection ID (CWE-22 / CWE-73) | **CRITICAL** | **Remediated & Verified** |
+| **OA-SEC-002** | `packages/core/src/policy/engine.ts` | Subdomain Wildcard Pattern Matching Bypass (CWE-297) | **HIGH** | **Remediated & Verified** |
+| **OA-SEC-003** | `packages/core/src/api/server.ts` | Host Header Spoofing & DNS Rebinding Vulnerability (CWE-346) | **HIGH** | **Remediated & Verified** |
+| **OA-SEC-004** | `apps/desktop/src/main/backup.ts` | Path Prefix Sibling Traversal in Restore Engine (CWE-22) | **MEDIUM** | **Remediated & Verified** |
+| **OA-SEC-005** | `packages/network/src/protocol/authenticator.ts` | Unbounded Nonce Cache Memory Exhaustion / DoS (CWE-400) | **MEDIUM** | **Remediated & Verified** |
+| **OA-SEC-006** | `apps/desktop/src/main/vault.ts` | Predictable Static Default Master Secret in CredentialVault (CWE-798) | **MEDIUM** | **Remediated & Verified** |
+| **OA-SEC-007** | `packages/core/src/audit/store.ts` | Silent Suppression of Corrupted Log Records on Load (CWE-390) | **LOW** | **Remediated & Verified** |
+| **DEP-SEC-001** | `apps/desktop` (devDependency: `extract-zip@2.0.1`) | Symlink Path Traversal in Zip Extraction (GHSA-jmr9-qjv8-65gv) | **HIGH** | **Documented Residual Risk (Compensating Controls)** |
+| **DEP-SEC-002** | `apps/desktop` (devDependency: `electron@30.5.1`) | ASAR Integrity Bypass & Upstream Advisories (GHSA-vmqv-hx8q-j7mg) | **HIGH** | **Documented Residual Risk (Compensating Controls)** |
+| **DEP-SEC-003** | `apps/desktop` (devDependency: `sprintf-js@1.1.3`) | Unbounded Precision Specifier DoS (GHSA-hp3w-g68c-fv3c) | **MODERATE** | **Documented Residual Risk (Compensating Controls)** |
 
 ---
 
@@ -130,3 +133,60 @@
 - **Impact**: Loss of auditability and false sense of integrity.
 - **Severity**: **LOW** (CVSS 3.3).
 - **Remediation**: Track and record corrupted lines encountered during loading, and flag them in `verifyIntegrity()`.
+
+---
+
+### DEP-SEC-001: extract-zip Symlink Path Traversal (GHSA-jmr9-qjv8-65gv / GHSA-7pqw-9j4j-h8q3)
+
+- **Package**: `extract-zip@2.0.1` (transitive development dependency via `electron@30.5.1`).
+- **Severity**: **HIGH** (CVSS 8.1).
+- **Affected Range**: `<=2.0.1` (No upstream patched release currently published on npm registry).
+- **Dependency Path**: `open-agent-infrastructure -> @open-agent/desktop (devDependencies) -> electron@30.5.1 -> extract-zip@2.0.1`.
+- **Execution Analysis**:
+  - `extract-zip` executes strictly during development `npm install` within `node_modules/electron/install.js` to unpack official Electron prebuilt binaries downloaded over HTTPS from GitHub Releases.
+  - The package is **not** imported, bundled, or executed during production runtime, desktop application packaging (`tar -czf` used), or backup restore operations.
+  - Application archive operations use `BackupEngine` with strict JSON/Base64 payloads and path traversal guards (`apps/desktop/src/main/backup.ts`).
+- **Compensating Controls**:
+  - `npm ci` verifies package checksum hashes against `package-lock.json`.
+  - Zero application processing of ZIP archives or user-supplied zip files.
+- **Disposition**: **Documented Residual Risk (Compensating Controls)**.
+- **Owner**: Desktop Infrastructure Team.
+- **Remediation Milestone**: v0.2.0 (Framework migration to modern toolchain decoupling legacy Electron postinstall scripts).
+
+---
+
+### DEP-SEC-002: Upstream Electron Vulnerabilities & ASAR Integrity Bypass (GHSA-vmqv-hx8q-j7mg et al.)
+
+- **Package**: `electron@30.5.1` (direct development dependency in `apps/desktop/package.json`).
+- **Severity**: **HIGH** (CVSS 8.2).
+- **Affected Range**: `<=41.10.5` (Requires SemVer major upgrade across 11-14 major versions).
+- **Dependency Path**: `apps/desktop/package.json` (`devDependencies.electron`).
+- **Execution Analysis**:
+  - OpenAgent Desktop **does not use ASAR archives**; code is distributed as loose unpacked directories under `resources/app/` (`apps/desktop/scripts/package.js`), rendering ASAR integrity bypasses inapplicable.
+  - Desktop main process is hardened with defense-in-depth settings (`apps/desktop/src/main/index.ts`):
+    - `contextIsolation: true`
+    - `nodeIntegration: false`
+    - `sandbox: true`
+    - `setPermissionRequestHandler: callback(false)` (unconditionally blocks all web permissions)
+    - `setWindowOpenHandler: { action: "deny" }` (blocks popup windows and untrusted navigation)
+    - `preload/index.ts` exposes only explicitly whitelisted IPC channels.
+- **Compensating Controls**: Sandboxed local-only renderer, strict IPC channel whitelist, zero external web navigation.
+- **Disposition**: **Documented Residual Risk (Compensating Controls)**.
+- **Owner**: Desktop Infrastructure Team.
+- **Remediation Milestone**: v0.2.0 (Framework upgrade to supported LTS Electron release branch after full compatibility qualification).
+
+---
+
+### DEP-SEC-003: sprintf-js Unbounded Precision Specifier Denial of Service (GHSA-hp3w-g68c-fv3c)
+
+- **Package**: `sprintf-js@1.1.3` (transitive development dependency via `electron -> @electron/get -> global-agent -> roarr`).
+- **Severity**: **MODERATE** (CVSS 5.3).
+- **Affected Range**: `<=1.1.3` (No upstream patched release published on npm registry).
+- **Dependency Path**: `apps/desktop -> electron -> @electron/get -> global-agent -> roarr -> sprintf-js`.
+- **Execution Analysis**:
+  - Used exclusively by proxy logging in `@electron/get` during binary download at `npm install`.
+  - Never loaded or executed in application runtime or production builds.
+- **Compensating Controls**: No untrusted or user-controlled format strings are processed.
+- **Disposition**: **Documented Residual Risk (Compensating Controls)**.
+- **Owner**: Desktop Infrastructure Team.
+- **Remediation Milestone**: v0.2.0.
