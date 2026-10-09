@@ -1,7 +1,7 @@
 # OpenAgent Infrastructure — Linux x64 Distribution & Installation Guide
 
 > **Release Scope**: Linux x86_64 (`x64`) Only.  
-> **Target Version**: `v0.1.0-rc1`  
+> **Target Version**: `0.2.0-alpha.1` (Alpha Pre-release — Testing & Evaluation Only; Not for Production)  
 > **Security Notice**: Do NOT extract untrusted archives or execute downloaded binaries without verifying SHA-256 provenance and checksums. Never run OpenAgent Desktop as `root` or with `sudo`.
 
 ---
@@ -20,24 +20,28 @@
 
 ## 2. Downloaded Archive Identification & Integrity Verification
 
-Official release candidate distribution files:
+Official distribution files for `0.2.0-alpha.1`:
 
-* **Archive**: `openagent-desktop-linux-x64.tar.gz` (or versioned alias `openagent-desktop-0.1.0-linux-x64.tar.gz`)
-* **Checksum Manifest**: `checksums.txt`
+* **Archive**: `openagent-desktop-0.2.0-alpha.1-linux-x64.tar.gz`
+* **Artifact Location**: `release/staging/openagent-desktop-0.2.0-alpha.1-linux-x64.tar.gz`
+* **Checksum Manifest**: `checksums.txt` (or `release/staging/checksums.txt`)
 * **Recorded SHA-256 Digest**:
   ```
-  0fa12457faaf239e1fb5528b906de265d0799301b86e2763e30c100069fca7c4  openagent-desktop-linux-x64.tar.gz
+  0844f90814ddd61de9b61490906ce022e1f559348a1195338e7bab9356639f09  openagent-desktop-0.2.0-alpha.1-linux-x64.tar.gz
   ```
+
+> **Historical Reference Notice**:  
+> The previous baseline release candidate `v0.1.0-rc1` utilized archive `openagent-desktop-linux-x64.tar.gz` with SHA-256 digest `0fa12457faaf239e1fb5528b906de265d0799301b86e2763e30c100069fca7c4`. That archive remains preserved in `release/desktop/` for immutable historical verification and must not be confused with the current `0.2.0-alpha.1` candidate.
 
 ### Step 1: Verify Checksum Before Extraction
 
 Verify the integrity against the authentic, trusted project channel digest:
 
 ```bash
-echo "0fa12457faaf239e1fb5528b906de265d0799301b86e2763e30c100069fca7c4  openagent-desktop-linux-x64.tar.gz" | sha256sum -c -
+echo "0844f90814ddd61de9b61490906ce022e1f559348a1195338e7bab9356639f09  openagent-desktop-0.2.0-alpha.1-linux-x64.tar.gz" | sha256sum -c -
 ```
 
-*Expected output*: `openagent-desktop-linux-x64.tar.gz: OK`.  
+*Expected output*: `openagent-desktop-0.2.0-alpha.1-linux-x64.tar.gz: OK`.  
 If verification fails, do NOT extract the archive. Discard the file immediately.
 
 ---
@@ -48,7 +52,7 @@ Extract the archive into a dedicated user-owned directory (e.g. `~/opt/openagent
 
 ```bash
 mkdir -p ~/opt/openagent
-tar -xzf openagent-desktop-linux-x64.tar.gz -C ~/opt/openagent
+tar -xzf openagent-desktop-0.2.0-alpha.1-linux-x64.tar.gz -C ~/opt/openagent
 cd ~/opt/openagent/openagent-desktop
 ```
 
@@ -74,7 +78,7 @@ ELECTRON_RUN_AS_NODE=1 ./openagent-desktop -e "console.log('OpenAgent Runtime Se
 
 *Expected output*:
 ```
-OpenAgent Runtime Self-Test: OK [Node 20.16.0, Electron 30.5.1]
+OpenAgent Runtime Self-Test: OK [Node 24.18.0, Electron 41.10.7]
 ```
 
 ---
@@ -149,5 +153,7 @@ OpenAgent installs entirely in user space without system-wide file modifications
 ## 9. Known Limitations and Residual Security Risks
 
 1. **Platform Scope**: Linux x64 (`x86_64`) is the only verified binary distribution. Windows and macOS binary builds are **UNTESTED (NOT RUN)**.
-2. **Toolchain Advisories**: Development dependencies contain 6 documented security advisories in the Electron toolchain (including `extract-zip` and upstream `electron`). These are mitigated by strict compensating controls (no ASAR packaging, `contextIsolation: true`, `nodeIntegration: false`, sandboxed renderer, zero runtime zip extraction). See [findings.md](../security-audit/findings.md).
-3. **No Automatic Background Updates**: OpenAgent does not implement unprompted auto-updates. Updates must be verified and installed manually by the user.
+2. **Toolchain Modernization & Security Status**: In `0.2.0-alpha.1`, toolchain upgrades to Node.js 22 LTS and Electron 41 Modern LTS eliminated legacy advisories (`npm audit` reports 0 vulnerabilities). Defense-in-depth controls (`contextIsolation: true`, `nodeIntegration: false`, sandboxed renderer) remain strictly enforced. Legacy `v0.1.0-rc1` toolchain findings remain documented in [findings.md](../security-audit/findings.md) for historical provenance only.
+3. **Cryptographic Signatures & Attestations**: Binary signature attestations (Cosign / SLSA Provenance / Minisign) are not yet integrated into the automated release pipeline; SHA-256 digest verification is currently mandatory.
+4. **Pre-Release Alpha Status**: Version `0.2.0-alpha.1` is strictly designated for controlled testing, evaluation, and early adopters. It is not approved for production-critical environments.
+5. **No Automatic Background Updates**: OpenAgent does not implement unprompted auto-updates. Updates must be verified and installed manually by the user.
