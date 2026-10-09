@@ -3,10 +3,12 @@
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "open-agent-infrastructure",
-  "documentNamespace": "https://github.com/openagent/openagent/spdx/fbee79b6-32c7-40c6-9d69-bd0cc2052639",
+  "documentNamespace": "https://github.com/openagent/openagent/spdx/e6bef9d4-6cd5-49f0-af1b-10dced1ec8f9",
   "creationInfo": {
-    "creators": ["Tool: OpenAgent SBOM Generator-1.0.0"],
-    "created": "2026-10-09T00:56:16.011Z"
+    "creators": [
+      "Tool: OpenAgent SBOM Generator-1.0.0"
+    ],
+    "created": "2026-10-09T10:44:07.108Z"
   },
   "packages": [
     {
