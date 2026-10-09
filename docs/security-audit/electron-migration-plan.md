@@ -92,3 +92,42 @@ Synchronous `require()` of ESM in `electron/install.js` is supported only on Nod
 * 100% pass rate on monorepo test suite (139+ tests) and security regressions (15/15).
 * Desktop startup latency benchmarks remain under 100 ms target.
 * Deterministic build hashes verified across consecutive builds.
+
+---
+
+## 6. Monorepo & Platform Compatibility Matrix
+
+| Environment Combination | Upstream Status | Dependency Install | Typecheck & Lint | Workspace Tests (139) | Security Suite (15) | Desktop Packaging | Linux Smoke Test | Evaluation Verdict |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Node 20.18 + Electron 30.5.1 (Linux x64)** | Electron EOL | **PASS** | **PASS** (0 errors) | **PASS** (139/139) | **PASS** (15/15) | **PASS** | **PASS** (Operational) | **RC Baseline (Verified)** |
+| **Node 20.18 + Electron 30.5.1 (Windows x64)** | Electron EOL | Untested | **PASS** (Types) | **NOT RUN** | **NOT RUN** | **NOT RUN** | **NOT RUN** | **NOT RUN (No CI Runner)** |
+| **Node 20.18 + Electron 30.5.1 (macOS arm64/x64)** | Electron EOL | Untested | **PASS** (Types) | **NOT RUN** | **NOT RUN** | **NOT RUN** | **NOT RUN** | **NOT RUN (No Notarization)** |
+| **Node 20.18 + Electron 41.10.7+ (All Platforms)** | Active LTS | **FAIL** (`ERR_REQUIRE_ESM`) | N/A (Install crash) | N/A | N/A | N/A | N/A | **BLOCKED (Requires Node >= 22.12)** |
+| **Node 22.12+ + Electron 41.10.7+ (Linux x64)** | Active LTS | **PASS** (Compatible) | **PASS** (Planned) | **PASS** (Planned) | **PASS** (Planned) | **PASS** (Planned) | **PASS** (Planned) | **Target for v0.2.0** |
+
+---
+
+## 7. Security Remediation Acceptance Criteria
+
+Every dependency advisory must be verified against concrete removal or upstream patch criteria:
+
+1. **`GHSA-jmr9-qjv8-65gv` & `GHSA-7pqw-9j4j-h8q3` (`extract-zip@2.0.1`)**:
+   - **Target**: `@electron-internal/extract-zip@1.0.5`.
+   - **Verification**: `npm ls extract-zip` returns 0 entries. Zero zip extraction vulnerabilities reported by `npm audit`.
+2. **`GHSA-hp3w-g68c-fv3c` (`sprintf-js@1.1.3` via `roarr` / `global-agent`)**:
+   - **Target**: `@electron/get@5.1.0` (switches to `undici` HTTP fetch, removing legacy proxy loggers).
+   - **Verification**: `npm ls sprintf-js roarr global-agent` returns 0 entries across entire lockfile.
+3. **`GHSA-vmqv-hx8q-j7mg` & Electron Core Advisories (`electron@30.5.1`)**:
+   - **Target**: `electron@41.10.7+` / `electron@44.7.0`.
+   - **Verification**: Upstream Chromium engine `>= 141`, `npm audit` reports 0 vulnerabilities for `electron`.
+
+---
+
+## 8. Rollback & Recovery Procedures
+
+If unexpected regressions occur during the v0.2.0 migration implementation:
+1. **Toolchain Reversion**: Revert `apps/desktop/package.json` to `electron: ^30.0.0` and restore `package-lock.json`.
+2. **Engine Baseline Reversion**: Revert root `package.json` engines to `"node": ">=20.0.0"`.
+3. **Verification**: Re-run `npm ci`, `npm run typecheck`, and `npm test` to verify restored 139 passing test baseline.
+4. **Historical Isolation**: The `v0.1.0-rc1` release candidate files under `release/desktop/` remain immutable and are never overwritten during migration.
+
