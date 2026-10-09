@@ -99,6 +99,24 @@ jobs:
           name: openagent-release-${{ github.ref_name }}
           path: release-dist
 
+      - name: Verify transferred artifacts integrity
+        run: |
+          cd release-dist
+          if [ ! -f "openagent-desktop-linux-x64.tar.gz" ]; then
+            echo "Error: Expected archive 'openagent-desktop-linux-x64.tar.gz' missing from downloaded artifacts."
+            exit 1
+          fi
+          if [ ! -f "SHA256SUMS" ]; then
+            echo "Error: Checksum manifest 'SHA256SUMS' missing from downloaded artifacts."
+            exit 1
+          fi
+          if ! grep -q "openagent-desktop-linux-x64.tar.gz" SHA256SUMS; then
+            echo "Error: SHA256SUMS does not contain an entry for 'openagent-desktop-linux-x64.tar.gz'."
+            exit 1
+          fi
+          sha256sum -c SHA256SUMS
+          cd ..
+
       - name: Generate SLSA build provenance attestation
         uses: actions/attest-build-provenance@c074443f1aeeab763a9f8b4d82b407b1c3c393bc # v2.2.3
         with:
@@ -122,17 +140,15 @@ jobs:
             RELEASE_OPTS+=("--prerelease")
           fi
 
-          NOTES_FILE=""
-          if [ -f "docs/releases/${{ github.ref_name }}-release-notes.md" ]; then
-            NOTES_FILE="--notes-file docs/releases/${{ github.ref_name }}-release-notes.md"
-          elif [ -f "docs/releases/v0.1.0-release-notes.md" ]; then
-            NOTES_FILE="--notes-file docs/releases/v0.1.0-release-notes.md"
-          else
-            NOTES_FILE="--generate-notes"
+          NOTES_PATH="docs/releases/${{ github.ref_name }}-release-notes.md"
+          if [ ! -f "$NOTES_PATH" ] || [ ! -s "$NOTES_PATH" ]; then
+            echo "Error: Required release notes file '$NOTES_PATH' is missing or empty."
+            echo "Publication requires explicit, version-specific release notes."
+            exit 1
           fi
 
           gh release create "${{ github.ref_name }}" \
             release-dist/* \
             --title "OpenAgent Infrastructure ${{ github.ref_name }}" \
-            $NOTES_FILE \
+            --notes-file "$NOTES_PATH" \
             "${RELEASE_OPTS[@]}"

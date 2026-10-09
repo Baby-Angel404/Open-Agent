@@ -8,41 +8,95 @@
 
 ## 1. Supported Architecture and Tested Runtime Requirements
 
-* **Architecture**: Linux `x86_64` (`x64`) exclusively.
-* **Operating System / C Runtime**: Linux distributions with `glibc 2.28+` (Ubuntu 20.04+, Debian 11+, Fedora 34+, Arch Linux, CentOS Stream 9+).
-* **Display Server**: X11 or Wayland (XWayland supported; native Wayland via `--ozone-platform=wayland`).
-* **Hardware Requirements**:
-  * Minimum 4 GB RAM (8 GB RAM recommended for local vector embeddings and Graph RAG).
-  * 500 MB free disk space for runtime binaries, application resources, and local knowledge databases.
-* **Privilege Level**: Standard unprivileged user account. Root or superuser privileges are strictly not required and discouraged.
+- **Architecture**: Linux `x86_64` (`x64`) exclusively.
+- **Operating System / C Runtime**: Linux distributions with `glibc 2.28+` (Ubuntu 20.04+, Debian 11+, Fedora 34+, Arch Linux, CentOS Stream 9+).
+- **Display Server**: X11 or Wayland (XWayland supported; native Wayland via `--ozone-platform=wayland`).
+- **Hardware Requirements**:
+  - Minimum 4 GB RAM (8 GB RAM recommended for local vector embeddings and Graph RAG).
+  - 500 MB free disk space for runtime binaries, application resources, and local knowledge databases.
+- **Privilege Level**: Standard unprivileged user account. Root or superuser privileges are strictly not required and discouraged.
 
 ---
 
-## 2. Downloaded Archive Identification & Integrity Verification
+## 2. Downloaded Archive Identification & Multi-Layer Integrity Verification
 
-Official distribution files for `0.2.0-alpha.1`:
+Official distribution files and verification layers:
 
-* **Archive**: `openagent-desktop-0.2.0-alpha.1-linux-x64.tar.gz`
-* **Artifact Location**: `release/staging/openagent-desktop-0.2.0-alpha.1-linux-x64.tar.gz`
-* **Checksum Manifest**: `checksums.txt` (or `release/staging/checksums.txt`)
-* **Recorded SHA-256 Digest**:
+- **Archive**: `openagent-desktop-linux-x64.tar.gz` (or versioned `openagent-desktop-0.2.0-alpha.1-linux-x64.tar.gz`)
+- **Checksum Manifest**: `SHA256SUMS` (or `checksums.txt`)
+- **Cosign Signature Bundle**: `openagent-desktop-linux-x64.tar.gz.bundle`
+- **Historical Alpha.1 SHA-256 Digest**:
   ```
   0844f90814ddd61de9b61490906ce022e1f559348a1195338e7bab9356639f09  openagent-desktop-0.2.0-alpha.1-linux-x64.tar.gz
   ```
 
-> **Historical Reference Notice**:  
-> The previous baseline release candidate `v0.1.0-rc1` utilized archive `openagent-desktop-linux-x64.tar.gz` with SHA-256 digest `0fa12457faaf239e1fb5528b906de265d0799301b86e2763e30c100069fca7c4`. That archive remains preserved in `release/desktop/` for immutable historical verification and must not be confused with the current `0.2.0-alpha.1` candidate.
+> **Historical Reference Notice**:
+>
+> - `v0.1.0-rc1`: archive `openagent-desktop-linux-x64.tar.gz` (`0fa12457faaf239e1fb5528b906de265d0799301b86e2763e30c100069fca7c4`) preserved in `release/desktop/`.
+> - `0.2.0-alpha.1`: archive `openagent-desktop-0.2.0-alpha.1-linux-x64.tar.gz` (`0844f908...`) preserved in `release/staging/`. Note: alpha.1 was packaged locally prior to CI supply-chain hardening and carries checksums only (no SLSA attestation or Cosign bundle).
+> - `v0.2.0-alpha.2+`: full three-layer verification (Checksum + SLSA Provenance + Cosign Signature) produced automatically by GitHub Actions.
 
-### Step 1: Verify Checksum Before Extraction
+---
 
-Verify the integrity against the authentic, trusted project channel digest:
+### Understanding the Three Trust Layers
+
+| Layer                    | Verification Tool        | What It Guarantees                                                                                                                       | What It Does NOT Guarantee                                             |
+| :----------------------- | :----------------------- | :--------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------- |
+| **1. SHA-256 Checksum**  | `sha256sum`              | **Transport Integrity**: The downloaded file matches the hash published in `SHA256SUMS`.                                                 | Does not prove WHO authored or published the hash.                     |
+| **2. Sigstore / Cosign** | `cosign` (2.x+)          | **Publisher Identity**: The file was cryptographically signed by the official GitHub Actions workflow for the exact repository and tag.  | Does not record the internal build steps or inputs.                    |
+| **3. SLSA Provenance**   | `gh attestation` (2.49+) | **Build Authenticity**: Cryptographic in-toto proof that GitHub Actions runner built this exact binary from the specified source commit. | Does not guarantee absence of zero-day vulnerabilities in source code. |
+
+---
+
+### Verification Procedures
+
+#### Step 2.1: Verify SHA-256 Checksum
 
 ```bash
+# Verify using published SHA256SUMS manifest
+sha256sum -c SHA256SUMS
+
+# Or verify single alpha.1 candidate directly
 echo "0844f90814ddd61de9b61490906ce022e1f559348a1195338e7bab9356639f09  openagent-desktop-0.2.0-alpha.1-linux-x64.tar.gz" | sha256sum -c -
 ```
 
-*Expected output*: `openagent-desktop-0.2.0-alpha.1-linux-x64.tar.gz: OK`.  
-If verification fails, do NOT extract the archive. Discard the file immediately.
+_Expected output_: `...: OK`. If verification fails, stop immediately.
+
+#### Step 2.2: Verify GitHub Artifact Attestation (SLSA Provenance)
+
+Prerequisites: GitHub CLI `gh` 2.49.0+ installed (`gh --version`).
+
+```bash
+gh attestation verify openagent-desktop-linux-x64.tar.gz \
+  --repo Baby-Angel404/Open-Agent
+```
+
+_Expected verification properties_:
+
+- **Repository**: `Baby-Angel404/Open-Agent`
+- **Signer**: `GitHub Actions` (`https://token.actions.githubusercontent.com`)
+- **Workflow**: `.github/workflows/release.yml`
+
+#### Step 2.3: Verify Sigstore / Cosign Keyless Signature
+
+Prerequisites: Sigstore `cosign` 2.x+ installed (`cosign version`).
+
+```bash
+cosign verify-blob openagent-desktop-linux-x64.tar.gz \
+  --bundle openagent-desktop-linux-x64.tar.gz.bundle \
+  --certificate-identity-regexp "^https://github.com/Baby-Angel404/Open-Agent/.github/workflows/release.yml@refs/tags/v.*" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
+```
+
+_Expected output_: `Verified OK`.
+
+---
+
+### Common Verification Failures and Remediation
+
+1. **`FAILED (checksum did not match)`**: The archive was corrupted or tampered with in transit. Delete the file immediately and re-download from GitHub Releases.
+2. **`certificate identity mismatch`**: The Cosign signature was minted by an unauthorized repository, workflow, or branch. Do NOT execute the binary.
+3. **`no matching attestations found`**: The binary does not have an authentic SLSA provenance record in the GitHub Attestation API for repository `Baby-Angel404/Open-Agent`. Treat the binary as untrusted.
 
 ---
 
@@ -76,7 +130,8 @@ Before launching the full desktop graphical interface, run the headless runtime 
 ELECTRON_RUN_AS_NODE=1 ./openagent-desktop -e "console.log('OpenAgent Runtime Self-Test: OK [Node ' + process.versions.node + ', Electron ' + process.versions.electron + ']')"
 ```
 
-*Expected output*:
+_Expected output_:
+
 ```
 OpenAgent Runtime Self-Test: OK [Node 24.18.0, Electron 41.10.7]
 ```
@@ -86,10 +141,12 @@ OpenAgent Runtime Self-Test: OK [Node 24.18.0, Electron 41.10.7]
 ## 6. Initial Configuration and Startup
 
 ### Environment Variables
-* `OPENAGENT_DESKTOP_DATA_DIR`: Base directory for application databases and audit trails (defaults to `~/.config/openagent`).
-* `OPENAGENT_VAULT_KEY`: Optional 256-bit passphrase for local AES-256-GCM Credential Vault. If unset, machine-isolated fallback key derivation applies.
+
+- `OPENAGENT_DESKTOP_DATA_DIR`: Base directory for application databases and audit trails (defaults to `~/.config/openagent`).
+- `OPENAGENT_VAULT_KEY`: Optional 256-bit passphrase for local AES-256-GCM Credential Vault. If unset, machine-isolated fallback key derivation applies.
 
 ### Launching the Application
+
 Execute the bundled launcher script:
 
 ```bash
@@ -103,6 +160,7 @@ Or execute directly:
 ```
 
 ### Optional: Desktop Integration
+
 To register the application in your desktop application menu:
 
 ```bash
@@ -115,7 +173,7 @@ update-desktop-database ~/.local/share/applications/ 2>/dev/null || true
 
 ## 7. Troubleshooting Common Linux Issues
 
-* **Wayland blank screen or GPU glitch**:
+- **Wayland blank screen or GPU glitch**:
   Launch with explicit ozone platform:
   ```bash
   ./openagent-desktop --ozone-platform=wayland
@@ -124,9 +182,9 @@ update-desktop-database ~/.local/share/applications/ 2>/dev/null || true
   ```bash
   GDK_BACKEND=x11 ./openagent-desktop
   ```
-* **Port Conflict (EADDRINUSE)**:
+- **Port Conflict (EADDRINUSE)**:
   OpenAgent Desktop allocates an ephemeral port (`port: 0`) for its internal loopback HTTP gateway, preventing fixed-port collisions automatically. If P2P network transport conflicts, change the network port in settings.
-* **Missing system libraries**:
+- **Missing system libraries**:
   Ensure standard graphical dependencies are installed on minimal Linux distributions: `libgtk-3-0`, `libnss3`, `libasound2`, `libdrm2`, `libgbm1`.
 
 ---

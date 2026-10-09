@@ -413,4 +413,182 @@ describe("Supply-Chain Policy & Verification Suite (Offline Negative Tests)", ()
       );
     });
   });
+
+  // 7. Release Notes Policy & Hazard Prevention
+  describe("Release Notes Gate & Fallback Hazard Prevention", () => {
+    const validateReleaseNotes = (repoPath, tag) => {
+      const notesPath = path.join(repoPath, "docs", "releases", `${tag}-release-notes.md`);
+      if (!fs.existsSync(notesPath)) {
+        throw new Error(
+          `ReleaseNotesError: Required release notes file "${notesPath}" is missing.`
+        );
+      }
+      const stat = fs.statSync(notesPath);
+      if (stat.size === 0) {
+        throw new Error(`ReleaseNotesError: Required release notes file "${notesPath}" is empty.`);
+      }
+      return notesPath;
+    };
+
+    it("should succeed when exact version release notes file exists and is non-empty", () => {
+      const notesFile = validateReleaseNotes(rootDir, "v0.2.0-alpha.2");
+      assert.ok(fs.existsSync(notesFile));
+      assert.ok(fs.statSync(notesFile).size > 0);
+    });
+
+    it("should reject when exact release notes file is missing", () => {
+      assert.throws(
+        () => validateReleaseNotes(rootDir, "v9.9.9-nonexistent"),
+        /Required release notes file.*is missing/
+      );
+    });
+
+    it("should reject when release notes file is empty", () => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "openagent-notes-test-"));
+      try {
+        const fakeDocs = path.join(tempDir, "docs", "releases");
+        fs.mkdirSync(fakeDocs, { recursive: true });
+        const emptyFile = path.join(fakeDocs, "v1.0.0-empty-release-notes.md");
+        fs.writeFileSync(emptyFile, "");
+
+        assert.throws(
+          () => validateReleaseNotes(tempDir, "v1.0.0-empty"),
+          /Required release notes file.*is empty/
+        );
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it("should reject fallback to older version release notes", () => {
+      const resolveNotesPathWithFallbackHazard = (repoPath, tag) => {
+        // Simulates old dangerous logic
+        const exact = path.join(repoPath, "docs", "releases", `${tag}-release-notes.md`);
+        if (fs.existsSync(exact)) return exact;
+        const legacy = path.join(repoPath, "docs", "releases", "v0.1.0-release-notes.md");
+        if (fs.existsSync(legacy)) return legacy;
+        return null;
+      };
+
+      const dangerousResolved = resolveNotesPathWithFallbackHazard(rootDir, "v0.2.0-alpha.99");
+      // Assert that using dangerous fallback would incorrectly match v0.1.0
+      assert.ok(dangerousResolved.includes("v0.1.0-release-notes.md"));
+
+      // The hardened policy rejects this fallback completely
+      assert.throws(
+        () => validateReleaseNotes(rootDir, "v0.2.0-alpha.99"),
+        /Required release notes file.*is missing/
+      );
+    });
+  });
+
+  // 8. Downstream Transferred Artifact Re-Verification Policy
+  describe("Downstream Artifact Integrity & Manifest Re-Verification", () => {
+    const verifyTransferredArtifacts = (distDir, expectedArchiveName) => {
+      const archivePath = path.join(distDir, expectedArchiveName);
+      if (!fs.existsSync(archivePath)) {
+        throw new Error(
+          `ArtifactIntegrityError: Expected archive "${expectedArchiveName}" missing from release-dist`
+        );
+      }
+      const manifestPath = path.join(distDir, "SHA256SUMS");
+      if (!fs.existsSync(manifestPath)) {
+        throw new Error(
+          "ArtifactIntegrityError: Checksum manifest 'SHA256SUMS' missing from release-dist"
+        );
+      }
+      const manifestContent = fs.readFileSync(manifestPath, "utf-8");
+      if (!manifestContent.includes(expectedArchiveName)) {
+        throw new Error(
+          `ArtifactIntegrityError: SHA256SUMS does not contain an entry for '${expectedArchiveName}'`
+        );
+      }
+
+      // Execute sha256sum verification
+      try {
+        execSync("sha256sum -c SHA256SUMS", { cwd: distDir, stdio: "ignore" });
+      } catch {
+        throw new Error(
+          "ArtifactIntegrityError: sha256sum verification failed against SHA256SUMS manifest"
+        );
+      }
+      return true;
+    };
+
+    it("should accept valid release-dist with matching SHA256SUMS manifest", () => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "openagent-dist-test-"));
+      try {
+        const archiveName = "openagent-desktop-linux-x64.tar.gz";
+        const content = Buffer.from("authentic package payload");
+        fs.writeFileSync(path.join(tempDir, archiveName), content);
+        const digest = crypto.createHash("sha256").update(content).digest("hex");
+        fs.writeFileSync(path.join(tempDir, "SHA256SUMS"), `${digest}  ${archiveName}\n`);
+
+        assert.strictEqual(verifyTransferredArtifacts(tempDir, archiveName), true);
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it("should reject when expected archive is missing", () => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "openagent-dist-test-"));
+      try {
+        fs.writeFileSync(
+          path.join(tempDir, "SHA256SUMS"),
+          "dummy  openagent-desktop-linux-x64.tar.gz\n"
+        );
+        assert.throws(
+          () => verifyTransferredArtifacts(tempDir, "openagent-desktop-linux-x64.tar.gz"),
+          /Expected archive "openagent-desktop-linux-x64.tar.gz" missing/
+        );
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it("should reject when SHA256SUMS manifest is missing", () => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "openagent-dist-test-"));
+      try {
+        fs.writeFileSync(path.join(tempDir, "openagent-desktop-linux-x64.tar.gz"), "data");
+        assert.throws(
+          () => verifyTransferredArtifacts(tempDir, "openagent-desktop-linux-x64.tar.gz"),
+          /Checksum manifest 'SHA256SUMS' missing/
+        );
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it("should reject when SHA256SUMS lacks entry for expected archive", () => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "openagent-dist-test-"));
+      try {
+        fs.writeFileSync(path.join(tempDir, "openagent-desktop-linux-x64.tar.gz"), "data");
+        fs.writeFileSync(path.join(tempDir, "SHA256SUMS"), "dummy  unrelated-file.tar.gz\n");
+        assert.throws(
+          () => verifyTransferredArtifacts(tempDir, "openagent-desktop-linux-x64.tar.gz"),
+          /SHA256SUMS does not contain an entry/
+        );
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it("should reject when archive content is corrupted or mismatched", () => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "openagent-dist-test-"));
+      try {
+        const archiveName = "openagent-desktop-linux-x64.tar.gz";
+        fs.writeFileSync(path.join(tempDir, archiveName), "corrupted payload");
+        fs.writeFileSync(
+          path.join(tempDir, "SHA256SUMS"),
+          `0000000000000000000000000000000000000000000000000000000000000000  ${archiveName}\n`
+        );
+        assert.throws(
+          () => verifyTransferredArtifacts(tempDir, archiveName),
+          /sha256sum verification failed/
+        );
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+  });
 });
