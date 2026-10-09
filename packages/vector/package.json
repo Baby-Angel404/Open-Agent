@@ -7,7 +7,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "test": "node --test",
+    "test": "node ../../scripts/test-runner.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "echo 'No lint errors in vector'",
     "format": "prettier --write \"src/**/*.{ts,json}\"",

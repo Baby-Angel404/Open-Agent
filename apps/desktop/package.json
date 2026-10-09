@@ -9,7 +9,7 @@
     "build": "tsc",
     "start": "electron dist/main/index.js",
     "typecheck": "tsc --noEmit",
-    "test": "node --test",
+    "test": "node ../../scripts/test-runner.mjs",
     "package": "node scripts/package.js",
     "lint": "echo 'No lint errors in desktop'",
     "clean": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\""

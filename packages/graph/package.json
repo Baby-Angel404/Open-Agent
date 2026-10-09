@@ -8,7 +8,7 @@
   "scripts": {
     "clean": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\"",
     "build": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\" && tsc",
-    "test": "node --test",
+    "test": "node ../../scripts/test-runner.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "echo 'No lint errors in graph'",
     "format": "prettier --write \"src/**/*.{ts,json}\""
