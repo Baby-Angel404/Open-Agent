@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { loadPolicy } from "../commands/policy.js";
-import { runCLI } from "../bin/openagent.js";
+import { runCLI, getCLIVersion } from "../bin/openagent.js";
 import { handleAgentStart, handleAgentStatus } from "../commands/agent.js";
 import { handleSessionList, loadSessions, handleSessionReplay } from "../commands/session.js";
 import { handleAuditList, handleAuditVerify, handleAuditExport } from "../commands/audit.js";
@@ -295,21 +295,48 @@ test("CLI network, peer, capability, and reputation commands execute successfull
   fs.rmSync(tmpDir, { recursive: true, force: true });
 });
 
-test("CLI entrypoint outputs version for --version, -v, and version flags", async () => {
+test("CLI entrypoint outputs version for --version, -v, and version flags from source of truth", async () => {
   const originalLog = console.log;
   const captured: string[] = [];
   console.log = (...args: unknown[]) => {
     captured.push(args.map(String).join(" "));
   };
+
+  const expectedPkgVersion = JSON.parse(
+    fs.readFileSync(new URL("../../package.json", import.meta.url), "utf-8")
+  ).version;
+
   try {
+    // 1. Verify default source of truth against package.json
+    assert.strictEqual(getCLIVersion(), expectedPkgVersion);
+
     await runCLI(["node", "openagent.js", "--version"]);
     await runCLI(["node", "openagent.js", "-v"]);
     await runCLI(["node", "openagent.js", "version"]);
     assert.strictEqual(captured.length, 3);
     for (const out of captured) {
-      assert.ok(out.includes("OpenAgent CLI v0.2.0-alpha.1"));
+      assert.strictEqual(out, `OpenAgent CLI v${expectedPkgVersion}`);
     }
+
+    // 2. Verify dynamic override via OPENAGENT_VERSION
+    process.env.OPENAGENT_VERSION = "0.2.0-test.dynamic";
+    assert.strictEqual(getCLIVersion(), "0.2.0-test.dynamic");
+
+    captured.length = 0;
+    await runCLI(["node", "openagent.js", "--version"]);
+    await runCLI(["node", "openagent.js", "-v"]);
+    await runCLI(["node", "openagent.js", "version"]);
+    assert.strictEqual(captured.length, 3);
+    for (const out of captured) {
+      assert.strictEqual(out, "OpenAgent CLI v0.2.0-test.dynamic");
+    }
+
+    // 3. Verify OPENAGENT_CLI_VERSION priority
+    process.env.OPENAGENT_CLI_VERSION = "0.2.0-cli-override";
+    assert.strictEqual(getCLIVersion(), "0.2.0-cli-override");
   } finally {
+    delete process.env.OPENAGENT_VERSION;
+    delete process.env.OPENAGENT_CLI_VERSION;
     console.log = originalLog;
   }
 });

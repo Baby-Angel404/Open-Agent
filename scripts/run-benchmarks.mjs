@@ -42,7 +42,9 @@ async function runBenchmarkSuite() {
     timestamp: new Date().toISOString(),
   };
 
-  console.log(`Environment: ${envInfo.cpus}x ${envInfo.cpuModel} (${envInfo.totalMemGB} GB RAM, ${envInfo.platform} ${envInfo.arch})`);
+  console.log(
+    `Environment: ${envInfo.cpus}x ${envInfo.cpuModel} (${envInfo.totalMemGB} GB RAM, ${envInfo.platform} ${envInfo.arch})`
+  );
 
   const results = {};
   const tempBase = await fs.promises.mkdtemp(path.join(os.tmpdir(), "oa-benchmark-"));
@@ -75,7 +77,9 @@ async function runBenchmarkSuite() {
       warmP95Ms: Number(warmStats.p95.toFixed(2)),
     };
     console.log(` - Cold Startup: ${results.startup.coldMs} ms`);
-    console.log(` - Warm Startup (median/p95): ${results.startup.warmMedianMs} ms / ${results.startup.warmP95Ms} ms`);
+    console.log(
+      ` - Warm Startup (median/p95): ${results.startup.warmMedianMs} ms / ${results.startup.warmP95Ms} ms`
+    );
 
     // Setup main lifecycle for subsequent benchmarks
     const mainDir = path.join(tempBase, "bench-main");
@@ -105,8 +109,8 @@ async function runBenchmarkSuite() {
     }
     const ingestStats = computeStats(ingestSamples);
     const totalIngestTimeMs = ingestSamples.reduce((a, b) => a + b, 0);
-    const docsPerSec = Number(((ingestDocCount / (totalIngestTimeMs / 1000))).toFixed(1));
-    const chunksPerSec = Number(((totalChunks / (totalIngestTimeMs / 1000))).toFixed(1));
+    const docsPerSec = Number((ingestDocCount / (totalIngestTimeMs / 1000)).toFixed(1));
+    const chunksPerSec = Number((totalChunks / (totalIngestTimeMs / 1000)).toFixed(1));
 
     results.ingestion = {
       docCount: ingestDocCount,
@@ -116,7 +120,9 @@ async function runBenchmarkSuite() {
       docsPerSec,
       chunksPerSec,
     };
-    console.log(` - Ingestion Throughput: ${docsPerSec} docs/sec (${chunksPerSec} chunks/sec) [median: ${results.ingestion.medianMs} ms]`);
+    console.log(
+      ` - Ingestion Throughput: ${docsPerSec} docs/sec (${chunksPerSec} chunks/sec) [median: ${results.ingestion.medianMs} ms]`
+    );
 
     // ----------------------------------------------------
     // Benchmark 3: Hybrid Retrieval & Vector Search Latency
@@ -124,7 +130,10 @@ async function runBenchmarkSuite() {
     console.log("Measuring Hybrid Retrieval Latency (50 queries)...");
     const querySamples = [];
     // Warm-up query
-    await dispatcher.dispatch(IPC_CHANNELS.RAG_QUERY, { query: "Knowledge entity 0", mode: "hybrid" });
+    await dispatcher.dispatch(IPC_CHANNELS.RAG_QUERY, {
+      query: "Knowledge entity 0",
+      mode: "hybrid",
+    });
 
     for (let i = 0; i < 50; i++) {
       const query = `Knowledge entity ${i % 10} semantic terms`;
@@ -140,7 +149,9 @@ async function runBenchmarkSuite() {
       minMs: Number(queryStats.min.toFixed(2)),
       maxMs: Number(queryStats.max.toFixed(2)),
     };
-    console.log(` - Hybrid Retrieval Latency (median/p95): ${results.retrieval.medianMs} ms / ${results.retrieval.p95Ms} ms`);
+    console.log(
+      ` - Hybrid Retrieval Latency (median/p95): ${results.retrieval.medianMs} ms / ${results.retrieval.p95Ms} ms`
+    );
 
     // ----------------------------------------------------
     // Benchmark 4: Policy Engine Evaluation Overhead
@@ -176,14 +187,18 @@ async function runBenchmarkSuite() {
       policySamples.push(performance.now() - tp0);
     }
     const policyStats = computeStats(policySamples);
-    const policyEvalsPerSec = Number((1000 / (policySamples.reduce((a, b) => a + b, 0) / 1000)).toFixed(0));
+    const policyEvalsPerSec = Number(
+      (1000 / (policySamples.reduce((a, b) => a + b, 0) / 1000)).toFixed(0)
+    );
     results.policy = {
       repetitions: 1000,
       medianUs: Number((policyStats.median * 1000).toFixed(1)),
       p95Us: Number((policyStats.p95 * 1000).toFixed(1)),
       evalsPerSec: policyEvalsPerSec,
     };
-    console.log(` - Policy Evaluation: ${policyStats.median < 0.01 ? (policyStats.median * 1000).toFixed(1) + " µs" : policyStats.median.toFixed(3) + " ms"} (${policyEvalsPerSec} evals/sec)`);
+    console.log(
+      ` - Policy Evaluation: ${policyStats.median < 0.01 ? (policyStats.median * 1000).toFixed(1) + " µs" : policyStats.median.toFixed(3) + " ms"} (${policyEvalsPerSec} evals/sec)`
+    );
 
     // ----------------------------------------------------
     // Benchmark 5: Network Cryptographic Ops (Ed25519)
@@ -211,7 +226,9 @@ async function runBenchmarkSuite() {
     const signStats = computeStats(signSamples);
     const verifyStats = computeStats(verifySamples);
     const signsPerSec = Number((200 / (signSamples.reduce((a, b) => a + b, 0) / 1000)).toFixed(0));
-    const verifiesPerSec = Number((200 / (verifySamples.reduce((a, b) => a + b, 0) / 1000)).toFixed(0));
+    const verifiesPerSec = Number(
+      (200 / (verifySamples.reduce((a, b) => a + b, 0) / 1000)).toFixed(0)
+    );
 
     results.crypto = {
       signMedianMs: Number(signStats.median.toFixed(3)),
@@ -219,8 +236,12 @@ async function runBenchmarkSuite() {
       verifyMedianMs: Number(verifyStats.median.toFixed(3)),
       verifiesPerSec,
     };
-    console.log(` - Ed25519 Signing: ${signsPerSec} ops/sec [median: ${results.crypto.signMedianMs} ms]`);
-    console.log(` - Ed25519 Verify: ${verifiesPerSec} ops/sec [median: ${results.crypto.verifyMedianMs} ms]`);
+    console.log(
+      ` - Ed25519 Signing: ${signsPerSec} ops/sec [median: ${results.crypto.signMedianMs} ms]`
+    );
+    console.log(
+      ` - Ed25519 Verify: ${verifiesPerSec} ops/sec [median: ${results.crypto.verifyMedianMs} ms]`
+    );
 
     // ----------------------------------------------------
     // Benchmark 6: Concurrent Session Handling
@@ -244,7 +265,9 @@ async function runBenchmarkSuite() {
       totalDurationMs: Number(concurrentTotalMs.toFixed(2)),
       avgPerSessionMs: Number((concurrentTotalMs / concurrentCount).toFixed(2)),
     };
-    console.log(` - 25 Concurrent Sessions: completed in ${results.concurrency.totalDurationMs} ms (${results.concurrency.avgPerSessionMs} ms/session)`);
+    console.log(
+      ` - 25 Concurrent Sessions: completed in ${results.concurrency.totalDurationMs} ms (${results.concurrency.avgPerSessionMs} ms/session)`
+    );
 
     // ----------------------------------------------------
     // Benchmark 7: Memory Footprint Under Bounded Workload
@@ -256,7 +279,9 @@ async function runBenchmarkSuite() {
       heapUsedMB: Number((finalMem.heapUsed / (1024 * 1024)).toFixed(2)),
       heapTotalMB: Number((finalMem.heapTotal / (1024 * 1024)).toFixed(2)),
     };
-    console.log(` - Memory (RSS / Heap Used): ${results.memory.finalRssMB} MB / ${results.memory.heapUsedMB} MB`);
+    console.log(
+      ` - Memory (RSS / Heap Used): ${results.memory.finalRssMB} MB / ${results.memory.heapUsedMB} MB`
+    );
 
     await lifecycle.stop();
 

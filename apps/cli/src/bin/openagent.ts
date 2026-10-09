@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import * as fs from "node:fs";
 import { handleAgentStatus, handleAgentStart, handleAgentStop } from "../commands/agent.js";
 import { handlePolicyCheck, handlePolicyList } from "../commands/policy.js";
 import {
@@ -221,6 +222,26 @@ function parseArgs(args: string[]): {
   return result;
 }
 
+export function getCLIVersion(): string {
+  if (process.env.OPENAGENT_CLI_VERSION) {
+    return process.env.OPENAGENT_CLI_VERSION;
+  }
+  if (process.env.OPENAGENT_VERSION) {
+    return process.env.OPENAGENT_VERSION;
+  }
+  try {
+    const pkgUrl = new URL("../../package.json", import.meta.url);
+    const raw = fs.readFileSync(pkgUrl, "utf-8");
+    const pkg = JSON.parse(raw) as { version?: string };
+    if (pkg.version) {
+      return pkg.version;
+    }
+  } catch {
+    // Fallback if package.json cannot be read
+  }
+  return "0.2.0-alpha.1";
+}
+
 export async function runCLI(argv: string[]): Promise<void> {
   const parsed = parseArgs(argv.slice(2));
 
@@ -231,7 +252,7 @@ export async function runCLI(argv: string[]): Promise<void> {
     parsed.options["version"] === "true" ||
     parsed.options["v"] === "true"
   ) {
-    console.log("OpenAgent CLI v0.2.0-alpha.1");
+    console.log(`OpenAgent CLI v${getCLIVersion()}`);
     return;
   }
 
