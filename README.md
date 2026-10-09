@@ -1,7 +1,7 @@
 # OpenAgent Infrastructure
 
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Status: Productized](https://img.shields.io/badge/Status-Phase_8_Desktop_Productized-green.svg)](<>)
+[![Status: Release Candidate v0.1.0-rc1](https://img.shields.io/badge/Status-v0.1.0--rc1-blue.svg)](docs/releases/release-candidate-checklist.md)
 [![Security: Default--Deny](https://img.shields.io/badge/Security-Default--Deny-red.svg)](<>)
 [![Privacy: Local--Only](https://img.shields.io/badge/Privacy-100%25_Local--Only-green.svg)](<>)
 
@@ -127,8 +127,49 @@ This produces:
 
 ---
 
+## Feature Implementation & Roadmap
+
+| Subsystem / Feature                | Maturity Status | Notes                                                                     |
+| :--------------------------------- | :-------------- | :------------------------------------------------------------------------ |
+| **Deterministic Policy Engine**    | **Completed**   | Full schema validation, domain rules, fail-closed default-deny.           |
+| **Local AI Agent Runtime**         | **Completed**   | Step execution loop, emergency kill-switch, interactive approvals.        |
+| **Controlled Browser Agent**       | **Completed**   | Navigation, DOM interaction, data transfer, protocol safety.              |
+| **Tamper-Evident Audit Logging**   | **Completed**   | Append-only SHA-256 hash chains, monotonic indexing, replay engine.       |
+| **Hybrid Vector Retrieval**        | **Completed**   | Dense cosine + BM25 sparse fusion, collection CRUD, local storage.        |
+| **Knowledge Graph & Graph RAG**    | **Completed**   | Entity resolution, depth-bounded traversal, grounded citation generation. |
+| **Decentralized Agent Network**    | **Completed**   | Ed25519 identity, wire signature authentication, capability invocation.   |
+| **Desktop Productization**         | **Completed**   | Electron app, sandboxed renderer, secure preload IPC, local vault.        |
+| **Distributed Capability Routing** | _Experimental_  | Multi-hop DHT routing across complex NAT environments.                    |
+| **Hardware-Enclave Vault (TPM)**   | _Planned_       | Hardware-backed key derivation for enterprise deployments.                |
+
+---
+
+## Platform Support & Verification Status
+
+| Platform    | Target Architecture   | Verification Status     | Release Package                                |
+| :---------- | :-------------------- | :---------------------- | :--------------------------------------------- |
+| **Linux**   | x86_64                | **Verified (RC Ready)** | Standalone dir, `.tar.gz`, `.desktop`          |
+| **Linux**   | ARM64                 | Planned                 | Source build supported                         |
+| **Windows** | x64 (10/11)           | **Untested (NOT RUN)**  | Blocked pending Windows CI runner & signing    |
+| **macOS**   | Apple Silicon / Intel | **Untested (NOT RUN)**  | Blocked pending macOS CI runner & notarization |
+
+---
+
+## Community & Governance
+
+- [Contributing Guide](CONTRIBUTING.md) — Architectural principles, PR standards, and local setup.
+- [Code of Conduct](CODE_OF_CONDUCT.md) — Contributor community expectations and standards.
+- [Security Policy](SECURITY.md) — Responsible vulnerability disclosure instructions and SLAs.
+- [Governance Charter](GOVERNANCE.md) — Maintainer roles, decision consensus, and RFC processes.
+- [Support & Channels](SUPPORT.md) — Troubleshooting resources and discussion channels.
+
+---
+
 ## Documentation Links
 
+- [Phase 10 Validation Results](docs/validation/phase-10-results.md)
+- [Benchmark Results Baseline](docs/validation/benchmark-results.md)
+- [Release Candidate Checklist](docs/releases/release-candidate-checklist.md)
 - [Desktop Architecture](docs/desktop-architecture.md)
 - [Desktop Security & Isolation](docs/desktop-security.md)
 - [Installation Guide](docs/installation.md)
@@ -138,7 +179,6 @@ This produces:
 - [Platform Support Matrix](docs/platform-support.md)
 - [Updates & Releases](docs/updates-and-releases.md)
 - [Privacy Policy](docs/privacy.md)
-- [Phase 8 Assessment](docs/phase-8-assessment.md)
 
 ---
 

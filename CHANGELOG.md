@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0-rc1] - 2026-10-09
+
+### Independent Validation & Release Candidate
+
+- **End-to-End Integration Suite**: Validated 10 multi-subsystem workflows without mocks (`apps/desktop/src/tests/phase10-e2e-integration.test.ts`), verifying complete lifecycles, policy enforcement, browser controls, hybrid Graph RAG, peer discovery, plugin sandbox, audit chains, backup/restore, IPC errors, and offline vault.
+- **Fault Resilience Suite**: Validated 7 fault injection scenarios (`apps/desktop/src/tests/phase10-failure-resilience.test.ts`), verifying safe handling of corrupted manifests, schema version mismatches, malformed RAG inputs, unreachable network peers, tampered backups, rate-limiting (429), and clean port release.
+- **Empirical Performance Benchmarking**: Established reproducible performance baselines (`scripts/run-benchmarks.mjs`): 59.65 ms cold start, 721.1 docs/sec ingestion, 1.3 ms hybrid retrieval median latency, 3.3 µs policy evaluation, and 65.73 MB RSS footprint.
+- **Release Candidate Gating**: Verified all 10 release gates on Linux x64 with strict separation of verified vs untested platforms (Windows & macOS marked NOT RUN).
+- **Package Verification**: Tested standalone archive unpacking and launcher integrity for `openagent-desktop-linux-x64.tar.gz`.
+
 ## [0.9.0] - 2026-10-09
 
 ### Security & Remediations

@@ -2,13 +2,13 @@
 
 ## 1. Operating System Compatibility Matrix
 
-| Platform    | Architecture          | Tier   | Status          | Packaging Format                      | Notes                                                                |
-| ----------- | --------------------- | ------ | --------------- | ------------------------------------- | -------------------------------------------------------------------- |
-| **Linux**   | x86_64                | Tier 1 | Fully Supported | Standalone dir, `.tar.gz`, `.desktop` | Built and verified on host environment. Supports both X11 & Wayland. |
-| **Linux**   | ARM64                 | Tier 2 | Supported       | Standalone dir, `.tar.gz`             | Cross-compilation supported via Node/Electron.                       |
-| **Windows** | x64 (10/11)           | Tier 1 | Fully Supported | Standalone dir, portable zip          | Full feature parity across IPC, vault, and networking.               |
-| **macOS**   | Apple Silicon (arm64) | Tier 1 | Fully Supported | Standalone dir, `.dmg`                | Native arm64 binaries supported.                                     |
-| **macOS**   | Intel (x64)           | Tier 2 | Supported       | Standalone dir, `.dmg`                | macOS 12 Monterey or newer required.                                 |
+| Platform    | Architecture          | Tier   | Status                  | Packaging Format                      | Notes                                                                                |
+| ----------- | --------------------- | ------ | ----------------------- | ------------------------------------- | ------------------------------------------------------------------------------------ |
+| **Linux**   | x86_64                | Tier 1 | **Verified (RC Ready)** | Standalone dir, `.tar.gz`, `.desktop` | Built, benchmarked, and validated on Linux host (Kernel 7.2+). Supports X11/Wayland. |
+| **Linux**   | ARM64                 | Tier 2 | Planned                 | Standalone dir, `.tar.gz`             | Node/Electron supported; awaiting dedicated ARM64 test runner.                       |
+| **Windows** | x64 (10/11)           | Tier 3 | **Untested (NOT RUN)**  | Standalone dir, portable zip          | Architecture portable, but unverified on Windows host. Blocked on Windows CI.        |
+| **macOS**   | Apple Silicon (arm64) | Tier 3 | **Untested (NOT RUN)**  | Standalone dir, `.dmg`                | Designed for macOS 12+, but unverified. Blocked on macOS runner and notarization.    |
+| **macOS**   | Intel (x64)           | Tier 3 | **Untested (NOT RUN)**  | Standalone dir, `.dmg`                | Unverified on physical hardware. Blocked on macOS CI runner.                         |
 
 ## 2. Hardware Acceleration & Headless Support
 

@@ -2,26 +2,29 @@
 
 ## 1. System Requirements
 
-- **Linux**: x86_64, glibc 2.28+ (Ubuntu 20.04+, Debian 11+, Fedora 34+, Arch Linux).
-- **Windows**: Windows 10/11 64-bit.
-- **macOS**: macOS 12+ (Intel & Apple Silicon).
+- **Linux**: x86_64, glibc 2.28+ (Ubuntu 20.04+, Debian 11+, Fedora 34+, Arch Linux) — **Verified**.
+- **Windows / macOS**: Currently untested in CI (pending platform-native runners); build from source supported.
 - **Memory**: Minimum 4 GB RAM (8 GB recommended for local vector embeddings).
 - **Disk Space**: 500 MB free storage for binaries and local knowledge databases.
 
-## 2. Linux Installation
+## 2. Linux Installation (Verified Release Candidate)
 
 ### Option A: Binary Tarball (Recommended)
 
-1. Download the release archive:
+1. Verify package integrity:
+   ```bash
+   sha256sum -c openagent-desktop-linux-x64.tar.gz.sha256
+   ```
+2. Unpack the release archive:
    ```bash
    tar -xzf openagent-desktop-linux-x64.tar.gz
    cd openagent-desktop
    ```
-2. Run the application:
+3. Run the application:
    ```bash
    ./launch-openagent.sh
    ```
-3. Optional: Install system shortcut:
+4. Optional: Install system shortcut:
    ```bash
    cp openagent.desktop ~/.local/share/applications/
    ```
