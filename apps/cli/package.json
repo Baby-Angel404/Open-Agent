@@ -12,7 +12,7 @@
     "clean": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\"",
     "build": "tsc && node -e \"try{fs.chmodSync('dist/bin/openagent.js', 0o755)}catch(e){}\"",
     "typecheck": "tsc --noEmit",
-    "test": "node --test dist/tests/",
+    "test": "node --test",
     "lint": "echo 'No lint errors in cli'"
   },
   "dependencies": {
