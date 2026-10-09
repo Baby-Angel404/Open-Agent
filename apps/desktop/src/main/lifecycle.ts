@@ -196,7 +196,7 @@ export class SubsystemLifecycle {
 
     return {
       running: this.isRunning,
-      version: "0.1.0",
+      version: "0.2.0-alpha.1",
       uptimeSeconds: uptime,
       subsystems: {
         runtime: !!this.agentRuntime,

@@ -101,7 +101,7 @@ export class BackupEngine {
 
     const manifest: BackupManifest = {
       version: "1.0",
-      appVersion: "0.1.0",
+      appVersion: "0.2.0-alpha.1",
       createdAt: new Date().toISOString(),
       checksum: overallChecksum,
       files: manifestFiles,

@@ -3,18 +3,18 @@
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "open-agent-infrastructure",
-  "documentNamespace": "https://github.com/openagent/openagent/spdx/e6bef9d4-6cd5-49f0-af1b-10dced1ec8f9",
+  "documentNamespace": "https://github.com/openagent/openagent/spdx/8bbbaad0-189c-4fba-a227-533e6e1fab49",
   "creationInfo": {
     "creators": [
       "Tool: OpenAgent SBOM Generator-1.0.0"
     ],
-    "created": "2026-10-09T10:44:07.108Z"
+    "created": "2026-10-09T11:15:07.460Z"
   },
   "packages": [
     {
       "name": "open-agent-infrastructure",
       "SPDXID": "SPDXRef-RootPackage",
-      "versionInfo": "0.1.0",
+      "versionInfo": "0.2.0-alpha.1",
       "downloadLocation": "NOASSERTION",
       "filesAnalyzed": false,
       "licenseConcluded": "Apache-2.0",
@@ -23,7 +23,7 @@
     {
       "name": "@open-agent/core",
       "SPDXID": "SPDXRef-Package-1",
-      "versionInfo": "0.1.0",
+      "versionInfo": "0.2.0-alpha.1",
       "downloadLocation": "NOASSERTION",
       "filesAnalyzed": false,
       "licenseConcluded": "Apache-2.0",
@@ -32,7 +32,7 @@
     {
       "name": "@open-agent/graph",
       "SPDXID": "SPDXRef-Package-2",
-      "versionInfo": "0.1.0",
+      "versionInfo": "0.2.0-alpha.1",
       "downloadLocation": "NOASSERTION",
       "filesAnalyzed": false,
       "licenseConcluded": "Apache-2.0",
@@ -41,7 +41,7 @@
     {
       "name": "@open-agent/network",
       "SPDXID": "SPDXRef-Package-3",
-      "versionInfo": "0.1.0",
+      "versionInfo": "0.2.0-alpha.1",
       "downloadLocation": "NOASSERTION",
       "filesAnalyzed": false,
       "licenseConcluded": "Apache-2.0",
@@ -50,7 +50,7 @@
     {
       "name": "@open-agent/vector",
       "SPDXID": "SPDXRef-Package-4",
-      "versionInfo": "0.1.0",
+      "versionInfo": "0.2.0-alpha.1",
       "downloadLocation": "NOASSERTION",
       "filesAnalyzed": false,
       "licenseConcluded": "Apache-2.0",
@@ -59,7 +59,7 @@
     {
       "name": "@open-agent/cli",
       "SPDXID": "SPDXRef-Package-5",
-      "versionInfo": "0.1.0",
+      "versionInfo": "0.2.0-alpha.1",
       "downloadLocation": "NOASSERTION",
       "filesAnalyzed": false,
       "licenseConcluded": "Apache-2.0",
@@ -68,7 +68,7 @@
     {
       "name": "@open-agent/desktop",
       "SPDXID": "SPDXRef-Package-6",
-      "versionInfo": "0.1.0",
+      "versionInfo": "0.2.0-alpha.1",
       "downloadLocation": "NOASSERTION",
       "filesAnalyzed": false,
       "licenseConcluded": "Apache-2.0",

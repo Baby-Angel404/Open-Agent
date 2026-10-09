@@ -1,6 +1,6 @@
 {
   "name": "@open-agent/desktop",
-  "version": "0.1.0",
+  "version": "0.2.0-alpha.1",
   "private": true,
   "description": "Cross-platform desktop application for OpenAgent Infrastructure",
   "main": "dist/main/index.js",

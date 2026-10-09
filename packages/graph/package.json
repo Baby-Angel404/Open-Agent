@@ -1,6 +1,6 @@
 {
   "name": "@open-agent/graph",
-  "version": "0.1.0",
+  "version": "0.2.0-alpha.1",
   "description": "Local-first Knowledge Graph and Graph RAG engine with evidence provenance for OpenAgent Infrastructure",
   "type": "module",
   "main": "dist/index.js",

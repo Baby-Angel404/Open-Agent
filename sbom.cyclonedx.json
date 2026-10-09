@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:88c65ec9-60dc-4a27-b9f6-7054d5921252",
+  "serialNumber": "urn:uuid:69f9a510-6f0f-4c93-844c-4ea4a8215b78",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-10-09T10:44:07.108Z",
+    "timestamp": "2026-10-09T11:15:07.460Z",
     "tools": {
       "components": [
         {
@@ -16,9 +16,9 @@
     },
     "component": {
       "type": "application",
-      "bom-ref": "pkg:npm/open-agent-infrastructure@0.1.0",
+      "bom-ref": "pkg:npm/open-agent-infrastructure@0.2.0-alpha.1",
       "name": "open-agent-infrastructure",
-      "version": "0.1.0",
+      "version": "0.2.0-alpha.1",
       "description": "Foundational open-source infrastructure platform for policy-controlled autonomous agents",
       "licenses": [
         {
@@ -32,9 +32,9 @@
   "components": [
     {
       "type": "application",
-      "bom-ref": "pkg:npm/@open-agent/core@0.1.0",
+      "bom-ref": "pkg:npm/@open-agent/core@0.2.0-alpha.1",
       "name": "@open-agent/core",
-      "version": "0.1.0",
+      "version": "0.2.0-alpha.1",
       "description": "Foundational types, deterministic policy engine, and audit logging for OpenAgent Infrastructure",
       "licenses": [
         {
@@ -43,7 +43,7 @@
           }
         }
       ],
-      "purl": "pkg:npm/@open-agent/core@0.1.0",
+      "purl": "pkg:npm/@open-agent/core@0.2.0-alpha.1",
       "properties": [
         {
           "name": "openagent:workspace-path",
@@ -53,9 +53,9 @@
     },
     {
       "type": "application",
-      "bom-ref": "pkg:npm/@open-agent/graph@0.1.0",
+      "bom-ref": "pkg:npm/@open-agent/graph@0.2.0-alpha.1",
       "name": "@open-agent/graph",
-      "version": "0.1.0",
+      "version": "0.2.0-alpha.1",
       "description": "Local-first Knowledge Graph and Graph RAG engine with evidence provenance for OpenAgent Infrastructure",
       "licenses": [
         {
@@ -64,7 +64,7 @@
           }
         }
       ],
-      "purl": "pkg:npm/@open-agent/graph@0.1.0",
+      "purl": "pkg:npm/@open-agent/graph@0.2.0-alpha.1",
       "properties": [
         {
           "name": "openagent:workspace-path",
@@ -74,9 +74,9 @@
     },
     {
       "type": "application",
-      "bom-ref": "pkg:npm/@open-agent/network@0.1.0",
+      "bom-ref": "pkg:npm/@open-agent/network@0.2.0-alpha.1",
       "name": "@open-agent/network",
-      "version": "0.1.0",
+      "version": "0.2.0-alpha.1",
       "description": "Decentralized agent networking, cryptographic identity, and capability marketplace with policy enforcement for OpenAgent Infrastructure",
       "licenses": [
         {
@@ -85,7 +85,7 @@
           }
         }
       ],
-      "purl": "pkg:npm/@open-agent/network@0.1.0",
+      "purl": "pkg:npm/@open-agent/network@0.2.0-alpha.1",
       "properties": [
         {
           "name": "openagent:workspace-path",
@@ -95,9 +95,9 @@
     },
     {
       "type": "application",
-      "bom-ref": "pkg:npm/@open-agent/vector@0.1.0",
+      "bom-ref": "pkg:npm/@open-agent/vector@0.2.0-alpha.1",
       "name": "@open-agent/vector",
-      "version": "0.1.0",
+      "version": "0.2.0-alpha.1",
       "description": "Lightweight local hybrid vector engine (dense vector + sparse BM25) for OpenAgent Infrastructure",
       "licenses": [
         {
@@ -106,7 +106,7 @@
           }
         }
       ],
-      "purl": "pkg:npm/@open-agent/vector@0.1.0",
+      "purl": "pkg:npm/@open-agent/vector@0.2.0-alpha.1",
       "properties": [
         {
           "name": "openagent:workspace-path",
@@ -116,9 +116,9 @@
     },
     {
       "type": "application",
-      "bom-ref": "pkg:npm/@open-agent/cli@0.1.0",
+      "bom-ref": "pkg:npm/@open-agent/cli@0.2.0-alpha.1",
       "name": "@open-agent/cli",
-      "version": "0.1.0",
+      "version": "0.2.0-alpha.1",
       "description": "Command-line interface for OpenAgent Infrastructure",
       "licenses": [
         {
@@ -127,7 +127,7 @@
           }
         }
       ],
-      "purl": "pkg:npm/@open-agent/cli@0.1.0",
+      "purl": "pkg:npm/@open-agent/cli@0.2.0-alpha.1",
       "properties": [
         {
           "name": "openagent:workspace-path",
@@ -137,9 +137,9 @@
     },
     {
       "type": "application",
-      "bom-ref": "pkg:npm/@open-agent/desktop@0.1.0",
+      "bom-ref": "pkg:npm/@open-agent/desktop@0.2.0-alpha.1",
       "name": "@open-agent/desktop",
-      "version": "0.1.0",
+      "version": "0.2.0-alpha.1",
       "description": "Cross-platform desktop application for OpenAgent Infrastructure",
       "licenses": [
         {
@@ -148,7 +148,7 @@
           }
         }
       ],
-      "purl": "pkg:npm/@open-agent/desktop@0.1.0",
+      "purl": "pkg:npm/@open-agent/desktop@0.2.0-alpha.1",
       "properties": [
         {
           "name": "openagent:workspace-path",
@@ -159,14 +159,14 @@
   ],
   "dependencies": [
     {
-      "ref": "pkg:npm/open-agent-infrastructure@0.1.0",
+      "ref": "pkg:npm/open-agent-infrastructure@0.2.0-alpha.1",
       "dependsOn": [
-        "pkg:npm/@open-agent/core@0.1.0",
-        "pkg:npm/@open-agent/graph@0.1.0",
-        "pkg:npm/@open-agent/network@0.1.0",
-        "pkg:npm/@open-agent/vector@0.1.0",
-        "pkg:npm/@open-agent/cli@0.1.0",
-        "pkg:npm/@open-agent/desktop@0.1.0"
+        "pkg:npm/@open-agent/core@0.2.0-alpha.1",
+        "pkg:npm/@open-agent/graph@0.2.0-alpha.1",
+        "pkg:npm/@open-agent/network@0.2.0-alpha.1",
+        "pkg:npm/@open-agent/vector@0.2.0-alpha.1",
+        "pkg:npm/@open-agent/cli@0.2.0-alpha.1",
+        "pkg:npm/@open-agent/desktop@0.2.0-alpha.1"
       ]
     }
   ]

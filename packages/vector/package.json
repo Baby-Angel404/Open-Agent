@@ -1,6 +1,6 @@
 {
   "name": "@open-agent/vector",
-  "version": "0.1.0",
+  "version": "0.2.0-alpha.1",
   "description": "Lightweight local hybrid vector engine (dense vector + sparse BM25) for OpenAgent Infrastructure",
   "type": "module",
   "main": "dist/index.js",
