@@ -12,7 +12,7 @@
     "test": "node --test dist/tests/",
     "package": "node scripts/package.js",
     "lint": "echo 'No lint errors in desktop'",
-    "clean": "rm -rf dist"
+    "clean": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\""
   },
   "dependencies": {
     "@open-agent/core": "*",

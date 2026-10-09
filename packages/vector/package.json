@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "echo 'No lint errors in vector'",
     "format": "prettier --write \"src/**/*.{ts,json}\"",
-    "clean": "rm -rf dist"
+    "clean": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\""
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

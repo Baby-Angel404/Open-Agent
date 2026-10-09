@@ -13,7 +13,8 @@
     }
   },
   "scripts": {
-    "build": "rm -rf dist && tsc",
+    "clean": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\"",
+    "build": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\" && tsc",
     "typecheck": "tsc --noEmit",
     "test": "node --test dist/tests/",
     "lint": "echo 'No lint errors in core'"
