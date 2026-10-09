@@ -1,6 +1,6 @@
 {
   "name": "@open-agent/core",
-  "version": "0.1.0",
+  "version": "0.2.0-alpha.1",
   "type": "module",
   "description": "Foundational types, deterministic policy engine, and audit logging for OpenAgent Infrastructure",
   "main": "./dist/index.js",

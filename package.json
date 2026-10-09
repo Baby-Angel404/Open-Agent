@@ -1,6 +1,6 @@
 {
   "name": "open-agent-infrastructure",
-  "version": "0.1.0",
+  "version": "0.2.0-alpha.1",
   "private": true,
   "description": "Foundational open-source infrastructure platform for policy-controlled autonomous agents",
   "workspaces": [
@@ -25,7 +25,7 @@
     "typescript": "^5.4.5"
   },
   "engines": {
-    "node": ">=20.0.0",
+    "node": ">=22.12.0",
     "npm": ">=10.0.0"
   },
   "license": "Apache-2.0"

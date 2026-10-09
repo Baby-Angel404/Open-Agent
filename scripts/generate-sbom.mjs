@@ -3,16 +3,109 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as crypto from "node:crypto";
+import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import * as prettier from "prettier";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, "..");
 
+async function writeFormattedJson(targetPath, data) {
+  const raw = JSON.stringify(data, null, 2) + "\n";
+  try {
+    const config = (await prettier.resolveConfig(targetPath)) || {};
+    const formatted = await prettier.format(raw, {
+      ...config,
+      parser: "json",
+    });
+    fs.writeFileSync(targetPath, formatted, "utf-8");
+  } catch {
+    fs.writeFileSync(targetPath, raw, "utf-8");
+  }
+}
+
 function computeFileHash(filePath) {
   if (!fs.existsSync(filePath)) return null;
   const content = fs.readFileSync(filePath);
   return crypto.createHash("sha256").update(content).digest("hex");
+}
+
+function validateCommitSha(sha) {
+  if (!sha || typeof sha !== "string") return false;
+  return /^[0-9a-f]{40}$/i.test(sha.trim());
+}
+
+function resolveGitMetadata(options = {}) {
+  let commit = options.sourceCommit || process.env.SOURCE_COMMIT || null;
+  let buildSourceCommit = options.buildSourceCommit || process.env.BUILD_SOURCE_COMMIT || null;
+  let tag = options.tag || process.env.RELEASE_TAG || null;
+  let repoUrl =
+    options.repoUrl || process.env.REPO_URL || "https://github.com/Baby-Angel404/Open-Agent";
+
+  if (!commit) {
+    try {
+      commit = execSync("git rev-parse HEAD", {
+        cwd: rootDir,
+        encoding: "utf-8",
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim();
+    } catch {
+      commit = null;
+    }
+  }
+
+  if (commit && !validateCommitSha(commit)) {
+    throw new Error(
+      `Invalid source commit SHA: "${commit}". Expected 40-character hexadecimal SHA.`
+    );
+  }
+
+  if (buildSourceCommit && !validateCommitSha(buildSourceCommit)) {
+    throw new Error(
+      `Invalid build source commit SHA: "${buildSourceCommit}". Expected 40-character hexadecimal SHA.`
+    );
+  }
+
+  if (options.strict && !commit) {
+    throw new Error(
+      "Strict mode: Source commit SHA could not be determined from environment or git repository."
+    );
+  }
+
+  if (!tag) {
+    try {
+      const gitTag = execSync("git describe --tags --exact-match 2>/dev/null || true", {
+        cwd: rootDir,
+        encoding: "utf-8",
+      }).trim();
+      if (gitTag) tag = gitTag;
+    } catch {
+      tag = null;
+    }
+  }
+
+  return {
+    commit: commit || null,
+    buildSourceCommit: buildSourceCommit || commit || null,
+    tag: tag || null,
+    repoUrl,
+  };
+}
+
+function parseArgs(args = process.argv.slice(2)) {
+  const options = {};
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--source-commit" && args[i + 1]) options.sourceCommit = args[++i];
+    else if (args[i] === "--build-source-commit" && args[i + 1])
+      options.buildSourceCommit = args[++i];
+    else if (args[i] === "--tag" && args[i + 1]) options.tag = args[++i];
+    else if (args[i] === "--repo-url" && args[i + 1]) options.repoUrl = args[++i];
+    else if (args[i] === "--output-cyclonedx" && args[i + 1]) options.outputCycloneDX = args[++i];
+    else if (args[i] === "--output-spdx" && args[i + 1]) options.outputSPDX = args[++i];
+    else if (args[i] === "--strict") options.strict = true;
+  }
+  return options;
 }
 
 function getWorkspaces() {
@@ -37,7 +130,7 @@ function getWorkspaces() {
   return workspaceDirs;
 }
 
-function generateCycloneDX() {
+async function generateCycloneDX(options = {}) {
   const rootPkg = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"), "utf-8"));
   const workspaces = getWorkspaces();
   const serialNumber = `urn:uuid:${crypto.randomUUID()}`;
@@ -97,6 +190,20 @@ function generateCycloneDX() {
     }
   }
 
+  const gitMeta = resolveGitMetadata(options);
+
+  const vcsProperties = [];
+  if (gitMeta.repoUrl)
+    vcsProperties.push({ name: "openagent:vcs:repository", value: gitMeta.repoUrl });
+  if (gitMeta.commit) vcsProperties.push({ name: "openagent:vcs:commit", value: gitMeta.commit });
+  if (gitMeta.buildSourceCommit && gitMeta.buildSourceCommit !== gitMeta.commit) {
+    vcsProperties.push({
+      name: "openagent:vcs:build_source_commit",
+      value: gitMeta.buildSourceCommit,
+    });
+  }
+  if (gitMeta.tag) vcsProperties.push({ name: "openagent:vcs:tag", value: gitMeta.tag });
+
   const bom = {
     bomFormat: "CycloneDX",
     specVersion: "1.5",
@@ -120,6 +227,7 @@ function generateCycloneDX() {
         version: rootPkg.version,
         description: rootPkg.description,
         licenses: [{ license: { id: rootPkg.license || "Apache-2.0" } }],
+        properties: vcsProperties.length > 0 ? vcsProperties : undefined,
       },
     },
     components,
@@ -131,11 +239,22 @@ function generateCycloneDX() {
     ],
   };
 
-  const outputPath = path.join(rootDir, "sbom.cyclonedx.json");
-  fs.writeFileSync(outputPath, JSON.stringify(bom, null, 2), "utf-8");
+  const outputPath = options.outputCycloneDX || path.join(rootDir, "sbom.cyclonedx.json");
+  await writeFormattedJson(outputPath, bom);
   console.log(`Generated CycloneDX SBOM at: ${outputPath} (${components.length} components)`);
 
   // Also produce SPDX 2.3 format
+  const spdxSourceInfo = gitMeta.commit
+    ? `Source Git commit: ${gitMeta.commit}${
+        gitMeta.buildSourceCommit && gitMeta.buildSourceCommit !== gitMeta.commit
+          ? ` (Compiled from source commit: ${gitMeta.buildSourceCommit})`
+          : ""
+      }${gitMeta.tag ? ` (Release tag: ${gitMeta.tag})` : ""}`
+    : "NOASSERTION";
+
+  const spdxDownloadLocation =
+    gitMeta.commit && gitMeta.repoUrl ? `git+${gitMeta.repoUrl}@${gitMeta.commit}` : "NOASSERTION";
+
   const spdx = {
     spdxVersion: "SPDX-2.3",
     dataLicense: "CC0-1.0",
@@ -151,7 +270,8 @@ function generateCycloneDX() {
         name: rootPkg.name,
         SPDXID: "SPDXRef-RootPackage",
         versionInfo: rootPkg.version,
-        downloadLocation: "NOASSERTION",
+        downloadLocation: spdxDownloadLocation,
+        sourceInfo: spdxSourceInfo,
         filesAnalyzed: false,
         licenseConcluded: rootPkg.license || "Apache-2.0",
         licenseDeclared: rootPkg.license || "Apache-2.0",
@@ -168,9 +288,16 @@ function generateCycloneDX() {
     ],
   };
 
-  const spdxOutputPath = path.join(rootDir, "sbom.spdx.json");
-  fs.writeFileSync(spdxOutputPath, JSON.stringify(spdx, null, 2), "utf-8");
+  const spdxOutputPath = options.outputSPDX || path.join(rootDir, "sbom.spdx.json");
+  await writeFormattedJson(spdxOutputPath, spdx);
   console.log(`Generated SPDX 2.3 SBOM at: ${spdxOutputPath}`);
+
+  return { cycloneDX: bom, spdx, outputPath, spdxOutputPath };
 }
 
-generateCycloneDX();
+export { validateCommitSha, resolveGitMetadata, generateCycloneDX, parseArgs };
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const options = parseArgs();
+  await generateCycloneDX(options);
+}

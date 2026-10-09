@@ -2,18 +2,21 @@
 
 ## Finding Summary Matrix
 
-| ID | Component | Vulnerability Class | Severity | Status |
-| --- | --- | --- | --- | --- |
-| **OA-SEC-001** | `packages/vector/src/storage/fs.storage.ts` | Path Traversal via Collection ID (CWE-22 / CWE-73) | **CRITICAL** | **Remediated & Verified** |
-| **OA-SEC-002** | `packages/core/src/policy/engine.ts` | Subdomain Wildcard Pattern Matching Bypass (CWE-297) | **HIGH** | **Remediated & Verified** |
-| **OA-SEC-003** | `packages/core/src/api/server.ts` | Host Header Spoofing & DNS Rebinding Vulnerability (CWE-346) | **HIGH** | **Remediated & Verified** |
-| **OA-SEC-004** | `apps/desktop/src/main/backup.ts` | Path Prefix Sibling Traversal in Restore Engine (CWE-22) | **MEDIUM** | **Remediated & Verified** |
-| **OA-SEC-005** | `packages/network/src/protocol/authenticator.ts` | Unbounded Nonce Cache Memory Exhaustion / DoS (CWE-400) | **MEDIUM** | **Remediated & Verified** |
-| **OA-SEC-006** | `apps/desktop/src/main/vault.ts` | Predictable Static Default Master Secret in CredentialVault (CWE-798) | **MEDIUM** | **Remediated & Verified** |
-| **OA-SEC-007** | `packages/core/src/audit/store.ts` | Silent Suppression of Corrupted Log Records on Load (CWE-390) | **LOW** | **Remediated & Verified** |
-| **DEP-SEC-001** | `apps/desktop` (devDependency: `extract-zip@2.0.1`) | Symlink Path Traversal in Zip Extraction (GHSA-jmr9-qjv8-65gv) | **HIGH** | **Documented Residual Risk (Compensating Controls)** |
-| **DEP-SEC-002** | `apps/desktop` (devDependency: `electron@30.5.1`) | ASAR Integrity Bypass & Upstream Advisories (GHSA-vmqv-hx8q-j7mg) | **HIGH** | **Documented Residual Risk (Compensating Controls)** |
-| **DEP-SEC-003** | `apps/desktop` (devDependency: `sprintf-js@1.1.3`) | Unbounded Precision Specifier DoS (GHSA-hp3w-g68c-fv3c) | **MODERATE** | **Documented Residual Risk (Compensating Controls)** |
+| ID              | Component                                             | Vulnerability Class                                                     | Severity     | Status                                               |
+| --------------- | ----------------------------------------------------- | ----------------------------------------------------------------------- | ------------ | ---------------------------------------------------- |
+| **OA-SEC-001**  | `packages/vector/src/storage/fs.storage.ts`           | Path Traversal via Collection ID (CWE-22 / CWE-73)                      | **CRITICAL** | **Remediated & Verified**                            |
+| **OA-SEC-002**  | `packages/core/src/policy/engine.ts`                  | Subdomain Wildcard Pattern Matching Bypass (CWE-297)                    | **HIGH**     | **Remediated & Verified**                            |
+| **OA-SEC-003**  | `packages/core/src/api/server.ts`                     | Host Header Spoofing & DNS Rebinding Vulnerability (CWE-346)            | **HIGH**     | **Remediated & Verified**                            |
+| **OA-SEC-004**  | `apps/desktop/src/main/backup.ts`                     | Path Prefix Sibling Traversal in Restore Engine (CWE-22)                | **MEDIUM**   | **Remediated & Verified**                            |
+| **OA-SEC-005**  | `packages/network/src/protocol/authenticator.ts`      | Unbounded Nonce Cache Memory Exhaustion / DoS (CWE-400)                 | **MEDIUM**   | **Remediated & Verified**                            |
+| **OA-SEC-006**  | `apps/desktop/src/main/vault.ts`                      | Predictable Static Default Master Secret in CredentialVault (CWE-798)   | **MEDIUM**   | **Remediated & Verified**                            |
+| **OA-SEC-007**  | `packages/core/src/audit/store.ts`                    | Silent Suppression of Corrupted Log Records on Load (CWE-390)           | **LOW**      | **Remediated & Verified**                            |
+| **DEP-SEC-001** | `apps/desktop` (devDependency: `extract-zip@2.0.1`)   | Symlink Path Traversal in Zip Extraction (GHSA-jmr9-qjv8-65gv)          | **HIGH**     | **Documented Residual Risk (Compensating Controls)** |
+| **DEP-SEC-002** | `apps/desktop` (devDependency: `electron@30.5.1`)     | ASAR Integrity Bypass & Upstream Advisories (GHSA-vmqv-hx8q-j7mg)       | **HIGH**     | **Documented Residual Risk (Compensating Controls)** |
+| **DEP-SEC-003** | `apps/desktop` (devDependency: `sprintf-js@1.1.3`)    | Unbounded Precision Specifier DoS (GHSA-hp3w-g68c-fv3c)                 | **MODERATE** | **Documented Residual Risk (Compensating Controls)** |
+| **DEP-SEC-004** | `apps/desktop` (devDependency: `roarr@2.15.4`)        | Inherited DoS via sprintf-js (Transitive Toolchain Dependency)          | **MODERATE** | **Documented Residual Risk (Compensating Controls)** |
+| **DEP-SEC-005** | `apps/desktop` (devDependency: `global-agent@3.0.0`)  | Inherited DoS via roarr -> sprintf-js (Transitive Toolchain Dependency) | **MODERATE** | **Documented Residual Risk (Compensating Controls)** |
+| **DEP-SEC-006** | `apps/desktop` (devDependency: `@electron/get@2.0.3`) | Inherited DoS via global-agent (Transitive Toolchain Dependency)        | **MODERATE** | **Documented Residual Risk (Compensating Controls)** |
 
 ---
 
@@ -187,6 +190,54 @@
   - Used exclusively by proxy logging in `@electron/get` during binary download at `npm install`.
   - Never loaded or executed in application runtime or production builds.
 - **Compensating Controls**: No untrusted or user-controlled format strings are processed.
+- **Disposition**: **Documented Residual Risk (Compensating Controls)**.
+- **Owner**: Desktop Infrastructure Team.
+- **Remediation Milestone**: v0.2.0.
+
+---
+
+### DEP-SEC-004: roarr Inherited Denial of Service via sprintf-js
+
+- **Package**: `roarr@2.15.4` (transitive development dependency via `electron -> @electron/get -> global-agent -> roarr`).
+- **Severity**: **MODERATE** (CVSS 5.3 via transitive `sprintf-js`).
+- **Affected Range**: `<=2.15.4` (Requires major breaking upgrade to roarr v7+).
+- **Dependency Path**: `apps/desktop -> electron -> @electron/get -> global-agent -> roarr`.
+- **Execution Analysis**:
+  - Logger used exclusively by `global-agent` during Electron binary download in development `npm install`.
+  - Not bundled in runtime distribution or desktop application packages.
+- **Compensating Controls**: Build/install time toolchain isolation; no runtime exposure.
+- **Disposition**: **Documented Residual Risk (Compensating Controls)**.
+- **Owner**: Desktop Infrastructure Team.
+- **Remediation Milestone**: v0.2.0.
+
+---
+
+### DEP-SEC-005: global-agent Inherited Denial of Service via roarr -> sprintf-js
+
+- **Package**: `global-agent@3.0.0` (transitive development dependency via `electron -> @electron/get -> global-agent`).
+- **Severity**: **MODERATE** (CVSS 5.3 via transitive dependency chain).
+- **Affected Range**: `<=3.0.0`.
+- **Dependency Path**: `apps/desktop -> electron -> @electron/get -> global-agent`.
+- **Execution Analysis**:
+  - HTTP proxy configuration library invoked exclusively during `@electron/get` binary downloads.
+  - Zero presence in production runtime or packaged desktop application.
+- **Compensating Controls**: Toolchain execution boundary; zero runtime execution.
+- **Disposition**: **Documented Residual Risk (Compensating Controls)**.
+- **Owner**: Desktop Infrastructure Team.
+- **Remediation Milestone**: v0.2.0.
+
+---
+
+### DEP-SEC-006: @electron/get Inherited Denial of Service via global-agent
+
+- **Package**: `@electron/get@2.0.3` (transitive development dependency via `electron -> @electron/get`).
+- **Severity**: **MODERATE** (CVSS 5.3 via transitive dependency chain).
+- **Affected Range**: `1.6.0 - 4.0.3`.
+- **Dependency Path**: `apps/desktop -> electron -> @electron/get`.
+- **Execution Analysis**:
+  - Official Electron utility responsible for downloading prebuilt binary releases during `npm install`.
+  - Never imported or packaged into production desktop artifacts.
+- **Compensating Controls**: Toolchain isolation; no runtime execution or user input handling.
 - **Disposition**: **Documented Residual Risk (Compensating Controls)**.
 - **Owner**: Desktop Infrastructure Team.
 - **Remediation Milestone**: v0.2.0.
