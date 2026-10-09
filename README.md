@@ -1,6 +1,7 @@
 # OpenAgent Infrastructure
 
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![CI: Cross-Platform Validation](https://github.com/Baby-Angel404/Open-Agent/actions/workflows/ci.yml/badge.svg)](https://github.com/Baby-Angel404/Open-Agent/actions/workflows/ci.yml)
 [![Status: Release Candidate v0.1.0-rc1](https://img.shields.io/badge/Status-v0.1.0--rc1-blue.svg)](docs/releases/release-candidate-checklist.md)
 [![Security: Default--Deny](https://img.shields.io/badge/Security-Default--Deny-red.svg)](<>)
 [![Privacy: Local--Only](https://img.shields.io/badge/Privacy-100%25_Local--Only-green.svg)](<>)
@@ -152,6 +153,20 @@ This produces:
 | **Linux**   | ARM64                 | Planned                 | Source build supported                         |
 | **Windows** | x64 (10/11)           | **Untested (NOT RUN)**  | Blocked pending Windows CI runner & signing    |
 | **macOS**   | Apple Silicon / Intel | **Untested (NOT RUN)**  | Blocked pending macOS CI runner & notarization |
+
+---
+
+## Continuous Integration & Automated Releases
+
+The project uses GitHub Actions for automated quality assurance and release engineering:
+
+- **CI & Cross-Platform Validation** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)):
+  - Fast checks: Code formatting (`npm run format:check`), linting (`npm run lint`), and SBOM validation (`npm run sbom`).
+  - Matrix testing: Compiles all workspaces (`npm run build`), runs strict typechecking (`npm run typecheck`), full test suite (`npm run test`), and security regression tests (`npm run test:security`) across **Ubuntu Linux**, **Windows**, and **macOS**.
+  - Packaging verification: Produces and verifies the Linux desktop distribution archive and SHA-256 checksums on Ubuntu runners.
+- **Automated Release Pipeline** ([`.github/workflows/release.yml`](.github/workflows/release.yml)):
+  - Triggered automatically on version tags (`v*.*.*`).
+  - Validates source tag commit, executes all release gates, generates CycloneDX & SPDX SBOMs, packages the Linux desktop bundle, and attaches verified artifacts to the GitHub Release.
 
 ---
 

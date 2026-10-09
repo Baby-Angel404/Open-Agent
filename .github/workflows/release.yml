@@ -1,24 +1,31 @@
-name: Release Engineering & Artifact Verification
+name: Automated Release & Verification
 
 on:
   push:
     tags:
       - "v*.*.*"
+      - "v*.*.*-*"
 
 permissions:
   contents: write
   id-token: write
 
 jobs:
-  release:
+  build-and-release:
+    name: Build & Release Verification
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           fetch-depth: 0
 
-      - name: Set up Node.js
+      - name: Set up Node.js 20.x
         uses: actions/setup-node@60edb5dd545a775178f525247059d64022d9248e # v4.0.2
         with:
           node-version: 20.x
@@ -27,34 +34,68 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Full monorepo validation
+      - name: Verify release commit matches tag
+        run: |
+          TAG_COMMIT=$(git rev-parse ${{ github.ref_name }}^{commit})
+          HEAD_COMMIT=$(git rev-parse HEAD)
+          echo "Tag Commit:  $TAG_COMMIT"
+          echo "HEAD Commit: $HEAD_COMMIT"
+          if [ "$TAG_COMMIT" != "$HEAD_COMMIT" ]; then
+            echo "Error: Tag does not point to current HEAD"
+            exit 1
+          fi
+
+      - name: Mandatory release gates validation
         run: |
           npm run format:check
           npm run typecheck
           npm run build
           npm run test
           npm run test:security
+          npm run benchmark
 
-      - name: Package desktop application
+      - name: Package Linux desktop distribution
         run: npm run package:desktop
 
-      - name: Generate CycloneDX & SPDX SBOM
+      - name: Generate CycloneDX & SPDX SBOMs
         run: npm run sbom
 
-      - name: Generate SHA-256 checksums
+      - name: Prepare release distribution directory & SHA256 checksums
         run: |
           mkdir -p release-dist
+          cp apps/desktop/release/openagent-desktop-linux-x64.tar.gz release-dist/
+          cp apps/desktop/release/openagent-desktop-linux-x64.tar.gz.sha256 release-dist/
           cp sbom.cyclonedx.json release-dist/
           cp sbom.spdx.json release-dist/
-          if [ -d "apps/desktop/dist" ]; then
-            tar -czf release-dist/openagent-desktop-linux.tar.gz -C apps/desktop/dist .
-          fi
           cd release-dist
-          sha256sum * > SHA256SUMS
+          sha256sum openagent-desktop-linux-x64.tar.gz sbom.cyclonedx.json sbom.spdx.json > SHA256SUMS
+          sha256sum -c SHA256SUMS
           cd ..
 
-      - name: Upload Release Artifacts
+      - name: Upload build artifacts
         uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4.3.1
         with:
-          name: release-artifacts
+          name: openagent-release-${{ github.ref_name }}
           path: release-dist/
+
+      - name: Publish GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_OPTS=()
+          if [[ "${{ github.ref_name }}" == *"-rc"* || "${{ github.ref_name }}" == *"-alpha"* || "${{ github.ref_name }}" == *"-beta"* ]]; then
+            RELEASE_OPTS+=("--prerelease")
+          fi
+
+          NOTES_FILE=""
+          if [ -f "docs/releases/v0.1.0-release-notes.md" ]; then
+            NOTES_FILE="--notes-file docs/releases/v0.1.0-release-notes.md"
+          else
+            NOTES_FILE="--generate-notes"
+          fi
+
+          gh release create "${{ github.ref_name }}" \
+            release-dist/* \
+            --title "OpenAgent Infrastructure ${{ github.ref_name }}" \
+            $NOTES_FILE \
+            "${RELEASE_OPTS[@]}"

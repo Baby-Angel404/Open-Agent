@@ -1,4 +1,4 @@
-name: CI & Security Validation
+name: CI & Cross-Platform Validation
 
 on:
   push:
@@ -6,15 +6,73 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
 jobs:
-  validate:
+  format-and-sbom:
+    name: Fast Checks & SBOM Validation
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@60edb5dd545a775178f525247059d64022d9248e # v4.0.2
+        with:
+          node-version: 20.x
+          cache: "npm"
+
+      - name: Install dependencies (clean)
+        run: npm ci
+
+      - name: Check code formatting
+        run: npm run format:check
+
+      - name: Lint codebase
+        run: npm run lint
+
+      - name: Generate and validate SBOMs
+        run: |
+          npm run sbom
+          node -e '
+            const fs = require("node:fs");
+            const cdx = JSON.parse(fs.readFileSync("sbom.cyclonedx.json", "utf8"));
+            const spdx = JSON.parse(fs.readFileSync("sbom.spdx.json", "utf8"));
+            if (cdx.bomFormat !== "CycloneDX") throw new Error("Invalid CycloneDX");
+            if (!spdx.spdxVersion || !spdx.spdxVersion.startsWith("SPDX-")) throw new Error("Invalid SPDX");
+            console.log("SBOMs structurally valid.");
+          '
+
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4.3.1
+        with:
+          name: sbom-definitions
+          path: |
+            sbom.cyclonedx.json
+            sbom.spdx.json
+
+  cross-platform-matrix:
+    name: Test (${{ matrix.os }}, Node ${{ matrix.node-version }})
+    needs: format-and-sbom
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
     strategy:
+      fail-fast: false
       matrix:
-        node-version: [20.x, 22.x]
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node-version: [20.x]
+        include:
+          - os: ubuntu-latest
+            node-version: 22.x
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - name: Checkout repository
@@ -26,34 +84,34 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: "npm"
 
-      - name: Install dependencies
+      - name: Install dependencies (clean)
         run: npm ci
 
-      - name: Check code formatting
-        run: npm run format:check
-
-      - name: Lint codebase
-        run: npm run lint
-
-      - name: Run type checking
+      - name: Type check all workspaces
         run: npm run typecheck
 
-      - name: Build packages and apps
+      - name: Build monorepo packages & applications
         run: npm run build
 
-      - name: Execute automated test suite
+      - name: Run unit & integration test suites
         run: npm run test
 
-      - name: Execute Phase 9 security regression suite
+      - name: Run Phase 9 security regression suite
         run: npm run test:security
 
-      - name: Generate CycloneDX & SPDX SBOMs
-        run: npm run sbom
+      - name: Package & verify Linux desktop application
+        if: matrix.os == 'ubuntu-latest' && matrix.node-version == '20.x'
+        run: |
+          npm run package:desktop
+          cd apps/desktop/release
+          sha256sum -c openagent-desktop-linux-x64.tar.gz.sha256
+          cd ../../..
 
-      - name: Upload SBOM artifacts
+      - name: Upload Linux desktop package artifact
+        if: matrix.os == 'ubuntu-latest' && matrix.node-version == '20.x'
         uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4.3.1
         with:
-          name: sbom-${{ matrix.node-version }}
+          name: openagent-desktop-linux-x64
           path: |
-            sbom.cyclonedx.json
-            sbom.spdx.json
+            apps/desktop/release/openagent-desktop-linux-x64.tar.gz
+            apps/desktop/release/openagent-desktop-linux-x64.tar.gz.sha256
