@@ -17,7 +17,6 @@
     "@open-agent/vector": "*"
   },
   "devDependencies": {
-    "@open-agent/core": "*",
     "@types/node": "^20.11.0",
     "typescript": "^5.4.5"
   },

@@ -8,9 +8,9 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "npm run build --workspace=@open-agent/vector && npm run build --workspace=@open-agent/graph && npm run build --workspace=@open-agent/network && npm run build --workspace=@open-agent/core && npm run build --workspace=@open-agent/cli && npm run build --workspace=@open-agent/desktop",
+    "build": "npm run build --workspace=@open-agent/vector && npm run build --workspace=@open-agent/graph && npm run build --workspace=@open-agent/core && npm run build --workspace=@open-agent/network && npm run build:security --workspace=@open-agent/core && npm run build --workspace=@open-agent/cli && npm run build --workspace=@open-agent/desktop",
     "test": "npm run test --workspace=@open-agent/vector && npm run test --workspace=@open-agent/graph && npm run test --workspace=@open-agent/network && npm run test --workspace=@open-agent/core && npm run test --workspace=@open-agent/cli && npm run test --workspace=@open-agent/desktop",
-    "typecheck": "npm run typecheck --workspace=@open-agent/vector && npm run typecheck --workspace=@open-agent/graph && npm run typecheck --workspace=@open-agent/network && npm run typecheck --workspace=@open-agent/core && npm run typecheck --workspace=@open-agent/cli && npm run typecheck --workspace=@open-agent/desktop",
+    "typecheck": "npm run typecheck --workspace=@open-agent/vector && npm run typecheck --workspace=@open-agent/graph && npm run typecheck --workspace=@open-agent/core && npm run typecheck --workspace=@open-agent/network && npm run typecheck --workspace=@open-agent/cli && npm run typecheck --workspace=@open-agent/desktop",
     "package:desktop": "npm run package --workspace=@open-agent/desktop",
     "test:security": "node --test packages/core/dist/tests/security-regression-suite.test.js",
     "sbom": "node scripts/generate-sbom.mjs",

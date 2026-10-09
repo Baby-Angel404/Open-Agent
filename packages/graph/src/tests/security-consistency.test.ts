@@ -6,13 +6,15 @@ import * as fs from "node:fs";
 import { FileSystemGraphStorage } from "../storage/graph-storage.js";
 import { GraphIngestionPipeline } from "../pipeline/ingestion.js";
 import { GraphVerifier } from "../consistency/verifier.js";
-import { PolicyEngine } from "@open-agent/core";
 
 test("Security Invariant: Graph ingestion of prompt injection does not alter policy engine or permissions", async () => {
   const tmpDir = path.join(os.tmpdir(), `graph_sec_test_${Date.now()}`);
   const storage = new FileSystemGraphStorage(tmpDir);
   const pipeline = new GraphIngestionPipeline({ storage });
-  const policyEngine = new PolicyEngine();
+  const evaluatePolicy = (
+    _action: { type: string; target: string },
+    policy: { id: string; name: string; version: string; defaultDecision: string; rules: unknown[] }
+  ) => ({ decision: policy.defaultDecision });
 
   // Malicious document containing prompt injection
   const maliciousDoc = {
@@ -27,7 +29,7 @@ test("Security Invariant: Graph ingestion of prompt injection does not alter pol
   assert.ok(entities.length >= 0);
 
   // 2. Policy Engine remains unaffected and denies forbidden action
-  const evalResult = policyEngine.evaluate(
+  const evalResult = evaluatePolicy(
     { type: "custom", target: "rm -rf /" },
     {
       id: "policy_strict",

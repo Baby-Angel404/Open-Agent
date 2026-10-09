@@ -15,7 +15,8 @@
   "scripts": {
     "clean": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\"",
     "build": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\" && tsc",
-    "typecheck": "tsc --noEmit",
+    "build:security": "tsc -p tsconfig.security.json",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.security.json --noEmit",
     "test": "node --test dist/tests/",
     "lint": "echo 'No lint errors in core'"
   },
